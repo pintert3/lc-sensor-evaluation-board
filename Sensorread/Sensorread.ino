@@ -7,8 +7,8 @@
 #include "ClosedCube_HDC1080.h"
 #include "Adafruit_HTU21DF.h"
 
-#define SDS_PIN_RX 19
-#define SDS_PIN_TX 18
+#define SDS_PIN_RX 2
+#define SDS_PIN_TX 3
 
 NovaSDS011 sds011;
 
@@ -44,7 +44,7 @@ void Tcselect(uint8_t bus){
 // bme intialization
 void BmeIntialize(Adafruit_BME280 &bme ,char *name){
   unsigned status;
-  status = bme.begin(); 
+  status = bme.begin(0x76); 
   if (!status) {
     Serial.println("Could not find a valid BME280 sensor, check wiring for:");
     Serial.print(name);
@@ -81,8 +81,8 @@ void Readdata(int index){
   Tcselect(index+1);
   SHTtmp[index]=sht31[index].readTemperature();
   SHThum[index]=sht31[index].readHumidity();
-  //BMEtmp[index]=bme[index].readTemperature();
-  //BMEhum[index]=bme[index].readHumidity();
+  BMEtmp[index]=bme[index].readTemperature();
+  BMEhum[index]=bme[index].readHumidity();
   HTUtmp[index]=htu[index].readTemperature();
   HTUhum[index]=htu[index].readHumidity();
   HDCtmp[index]=hdc1080[index].readTemperature();
@@ -111,19 +111,31 @@ void Readdata(int index){
   if (! isnan(HTUhum[index])) {  // check if 'is not a number'
     Serial.print("HTU_Hum. % = "); Serial.println(HTUhum[index]);
   } else { 
-    Serial.println("Failed to read sht humidity");
+    Serial.println("Failed to read htu humidity");
   }
 
   if (! isnan(HDCtmp[index])) {  // check if 'is not a number'
     Serial.print("HDC_Temp *C = "); Serial.print(HDCtmp[index]); Serial.print("\t\t");
   } else { 
-    Serial.println("Failed to read Sht temperature");
+    Serial.println("Failed to read hdc temperature");
   }
   
   if (! isnan(HDChum[index])) {  // check if 'is not a number'
     Serial.print("HDC_Hum. % = "); Serial.println(HDChum[index]);
   } else { 
-    Serial.println("Failed to read sht humidity");
+    Serial.println("Failed to read HDC humidity");
+  }
+
+  if (! isnan(BMEtmp[index])) {  // check if 'is not a number'
+    Serial.print("BME_Temp *C = "); Serial.print(BMEtmp[index]); Serial.print("\t\t");
+  } else { 
+    Serial.println("Failed to read BME temperature");
+  }
+  
+  if (! isnan(SHThum[index])) {  // check if 'is not a number'
+    Serial.print("BME_Hum. % = "); Serial.println(BMEhum[index]);
+  } else { 
+    Serial.println("Failed to read BME humidity");
   }
   Serial.println("-----------------------------------------");
 
@@ -140,7 +152,7 @@ void setup() {
   
   //------------check status as initializing------------
   Tcselect(1);// select channel 1
-  //BmeIntialize(bme[0]," bme1");
+  BmeIntialize(bme[0]," bme1");
   Shtinitalize(sht31[0],"sht31_1");
   hdc1080[0].begin(0x40);// doesn't return boolean so just intialize
   Htuinitialize(htu[0]," Htu21df_1");
@@ -163,7 +175,9 @@ void setup() {
   */
 
   //-- nova setup---
+  
   sds011.begin(SDS_PIN_RX, SDS_PIN_TX);
+  /*
   if (sds011.setWorkingMode(WorkingMode::work))
   {
     //Serial.println("SDS011 working mode \"Work\"");
@@ -196,7 +210,7 @@ void setup() {
   {
     Serial.println("FAIL: Unable to set Duty Cycle");
     while (1) delay(10);//do nothing more
-  }
+  }*/
 }
 
 void loop() {
@@ -217,14 +231,14 @@ void loop() {
   Readdata(0);
 
   float p25, p10;
-  if (sds011.queryData(p25, p10) == QuerryError::no_error)
-  {
+  sds011.queryData(p25, p10) ;
+  
     //Serial.println("Nova SDS011");
     //Serial.println(String(millis() / 1000) + "s:PM2.5=" + String(p25) + ", PM10=" + String(p10));
     Serial.println(String("Nova SDS011 ") + "PM2.5 = " + String(p25) + ", PM10 = " + String(p10));
     Serial.println("-------------------------------------------------------------");
-    delay(10000);
-  }
+    delay(6000);
+  
   //Readdata(1);
   //Readdata(2);
   // put your main code here, to run repeatedly:
