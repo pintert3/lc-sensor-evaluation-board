@@ -111,8 +111,9 @@ void Readdata(int index){
   } else { 
     Serial.println("Failed to read htu humidity");
   }
-
-  if (! isnan(HDCtmp[index])) {  // check if 'is not a number'
+// we only have 2 hdc
+  if(index<2){
+    if (! isnan(HDCtmp[index])) {  // check if 'is not a number'
     Serial.print("HDC_Temp *C = "); Serial.print(HDCtmp[index]); Serial.print("\t\t");
   } else { 
     Serial.println("Failed to read hdc temperature");
@@ -122,6 +123,8 @@ void Readdata(int index){
     Serial.print("HDC_Hum. % = "); Serial.println(HDChum[index]);
   } else { 
     Serial.println("Failed to read HDC humidity");
+  }
+
   }
 
   if (! isnan(BMEtmp[index])) {  // check if 'is not a number'
