@@ -6,9 +6,6 @@
 #include "ClosedCube_HDC1080.h"
 #include "Adafruit_HTU21DF.h"
 
-#define SDS_PIN_RX 2
-#define SDS_PIN_TX 3
-
 
 Adafruit_BME280 bme[3];
 
@@ -23,7 +20,6 @@ float SMTtemp=0.0;
 float SMTmois=0.0;
 float BMEtmp[3]={};
 float BMEhum[3]={};
-//float BMEpre[3]={};
 float SHTtmp[3]={};
 float SHThum[3]={};
 float HDCtmp[3]={};
