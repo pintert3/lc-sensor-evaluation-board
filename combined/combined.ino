@@ -9,6 +9,9 @@
 #include "SdsDustSensor.h"
 #include <PMserial.h>
 #include "SoftwareSerial.h"
+#include <DS3231.h>
+
+DS3231  rtc(SDA, SCL);
 //sdcard
 const int CSpin = 53;
 File tempFile;
@@ -31,6 +34,7 @@ unsigned statusSHT[3];
 unsigned statusHTU[3];
 
 //data strings that will be written to the sdcard
+String timeStamp="";
 String tempString="";
 String humString="";
 String airPartString="";
@@ -88,6 +92,7 @@ void Readdata(int i){
 void setup() {
  //initialize all the sensors
   Wire.begin();
+  rtc.begin();
   for(int i=0;i<3;i++){
     //small sensors
     Tcselect(i+1);// select channel 
@@ -135,6 +140,7 @@ void loop() {
   //tempString+=(String(SMTtemp)+",");
   
   ///major loop here tor read all the other sensors that are in 3s
+  timeStamp=(String(rtc.getDateStr())+"-"+String(rtc.getTimeStr()));
   for(int i=0;i<3;i++){
     Readdata(i);// first read from the small sensors
     soft[i].listen();
@@ -202,10 +208,10 @@ void loop() {
       
     }
   }
-
-  tempString+="done";
-  humString+="done";
-  airPartString+="done";
+  
+  tempString+=timeStamp;
+  humString+=timeStamp;
+  airPartString+=timeStamp;
   saveData(tempFile,tempString,"temp.csv");
   delay(1000);
   saveData(humFile,humString,"hum.csv");
