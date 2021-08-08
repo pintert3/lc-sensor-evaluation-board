@@ -81,6 +81,7 @@ void Readdata(int i){
     humString+=("NULL,");
     }
   if (i<2){// we only have 2 of these
+    Tcselect(i+6);
     //We have to make sure they are connected otherwise since we have no status check for these yet.
     // Their ".begin()" doesn't return anything
     tempString+=(String(hdc1080[i].readTemperature())+",");
@@ -100,6 +101,7 @@ void setup() {
     statusSHT[i] = sht31[i].begin(); 
     statusBME[i] =bme[i].begin(0x76); 
     if(i<2){
+      Tcselect(i+6);
       hdc1080[i].begin(0x40);// doesn't return boolean so just intialize 
     }
     //big sensors
@@ -209,8 +211,8 @@ void loop() {
     }
   }
   
-  tempString+=timeStamp;
-  humString+=timeStamp;
+  tempString+=(String(SMTtemp)+","+timeStamp);
+  humString+=(String(SMTmois)+","+timeStamp);
   airPartString+=timeStamp;
   saveData(tempFile,tempString,"temp.csv");
   delay(1000);
