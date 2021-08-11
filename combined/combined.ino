@@ -12,11 +12,17 @@
 #include <DS3231.h>
 
 DS3231  rtc(SDA, SCL);
+
+// TAHMO METER interface
+const int TAHMO_INT = 2; // TAHMO Interrupt pin selection // BUG <============
+const int TAHMO_DATA = 33 // previously MISO
+
 //sdcard
 const int CSpin = 53;
 File tempFile;
 File humFile;
 File airPartFile;
+
 //tiny sensor objects
 Adafruit_BME280 bme[3];
 Adafruit_SHT31 sht31[3];
@@ -43,6 +49,7 @@ String airPartString="";
 const int SMTmeasurements = 50;// multiple measurements to reduce noise error
 float SMTtemp=0.0;
 float SMTmois=0.0;
+
 
 // function to select channels
 void Tcselect(uint8_t bus){
@@ -100,6 +107,7 @@ void setup() {
     statusSHT[i] = sht31[i].begin(); 
     statusBME[i] =bme[i].begin(0x76); 
     if(i<2){
+      // HDC1080 address is 0x40
       hdc1080[i].begin(0x40);// doesn't return boolean so just intialize 
     }
     //big sensors
@@ -112,6 +120,8 @@ void setup() {
     if (!SD.begin(CSpin)) {
       //put an indicator led
     }
+
+  attachInterrupt(digitalPinToInterrupt(TAHMO_SS,tahmoISR,LOW); // attach TAHMO SPI interrupt // BUG <=====================
 }
 
 void loop() {
@@ -218,19 +228,31 @@ void loop() {
   delay(1000);
   saveData(airPartFile,airPartString,"airpart.csv");
   
-delay (30000);
+  delay (30000);
 }
+
 void saveData(File sensorData, String Data ,String filename){
   //assumes already the file with that name already exists on the card
-if(SD.exists(filename)){ // check the card is still there
-// now append new data file
-sensorData = SD.open(filename, FILE_WRITE);
-if (sensorData){
-sensorData.println(Data);
-sensorData.close(); // close the file
+
+  if(SD.exists(filename)){ // check the card is still there
+    // now append new data file
+    sensorData = SD.open(filename, FILE_WRITE);
+    if (sensorData){
+    sensorData.println(Data);
+    sensorData.close(); // close the file
+    }
+  } else {
+    //Serial.println("Error writing to file !"); place indicator led
+    }
 }
-}
-else{
-//Serial.println("Error writing to file !"); place indicator led
-}
+
+
+void tahmoMillivoltSend(uint16_t data) {
+  // METER group millivolt spec
+  if (data > 0xBB8) {
+    // truncate data to 0xBB8 if greater...could also send zeros instead
+    
+    // Next I need a module that interfaces with the stereo jack /
+    // I simply send the output to a TAHMO analog output pin }
+    
 }
