@@ -1,7 +1,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
-#include<SPI.h>
+#include <SPI.h>
 #include "SD.h"
 #include "Adafruit_SHT31.h"
 #include "Adafruit_HTU21DF.h"
@@ -12,10 +12,6 @@
 #include "hdc.h"
 
 DS3231  rtc(SDA, SCL);
-
-// TAHMO METER interface
-const int TAHMO_INT = 2; // TAHMO Interrupt pin selection // BUG <============
-const int TAHMO_DATA = 33 // previously MISO
 
 //sdcard
 const int CSpin = 53;
@@ -71,19 +67,19 @@ void Readdata(int i){
     delay(100);
     humString+=(String(sht31[i].readHumidity())+",");
     delay(100);
-  }else{
+  } else {
     tempString+=("NULL,");
     humString+=("NULL,");
-    }
+  }
   if (statusBME[i]){
     tempString+=(String(bme[i].readTemperature())+",");
     delay(100);
     humString+=(String(bme[i].readHumidity())+",");
     delay(100);
-  }else{
+  } else {
     tempString+=("NULL,");
     humString+=("NULL,");
-    }
+  }
   if (statusHTU[i]){
     tempString+=(String(htu[i].readTemperature())+",");
     delay(100);
@@ -93,7 +89,7 @@ void Readdata(int i){
   }else{
     tempString+=("NULL,");
     humString+=("NULL,");
-    }
+  }
   if (i<2){// we only have 2 of these
     Tcselect(i+6);
     //We have to make sure they are connected otherwise since we have no status check for these yet.
@@ -264,14 +260,3 @@ void saveData(File sensorData, String Data ,String filename){
     //Serial.println("Error writing to file !"); place indicator led
   }
 }
-
-
-void tahmoMillivoltSend(uint16_t data) {
-  // METER group millivolt spec
-  if (data > 0xBB8) {
-    // truncate data to 0xBB8 if greater...could also send zeros instead
-    
-    // Next I need a module that interfaces with the stereo jack /
-    // I simply send the output to a TAHMO analog output pin 
-}
-    
