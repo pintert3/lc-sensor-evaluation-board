@@ -28,7 +28,7 @@ Adafruit_HTU21DF htu[3];
 //particulate matter objects
 SoftwareSerial soft[3]={SoftwareSerial(10,11),SoftwareSerial(12,13),SoftwareSerial(62,63)};
 SdsDustSensor sds[3]={SdsDustSensor(soft[0]),SdsDustSensor(soft[1]),SdsDustSensor(soft[2])}; //passing Softwareserial& as parameter
-SerialPM pmsa_array[3]={SerialPM(PMSA003, Serial1),SerialPM(PMSA003, Serial2),SerialPM(PMSA003, Serial3)};// passing HardwareSerial& as parameter
+SerialPM pmsa_array[2]={SerialPM(PMSA003, Serial1),SerialPM(PMSA003, Serial2)};// passing HardwareSerial& as parameter
 
 //small sensor status established in setup function
 unsigned statusBME[3];
@@ -126,7 +126,9 @@ void setup() {
       delay(100);
     }
     //big sensors
-    pmsa_array[i].init();
+    if (i < 2) {
+      pmsa_array[i].init();
+    }
     sds[i].begin(); // this line will begin soft-serial with given baud rate (9600 by default)
     sds[i].setQueryReportingMode(); // set reporting mode  
     }
@@ -136,7 +138,6 @@ void setup() {
       //put an indicator led
     }
 
-  attachInterrupt(digitalPinToInterrupt(TAHMO_SS,tahmoISR,LOW); // attach TAHMO SPI interrupt // BUG <=====================
 }
 
 void loop() {
@@ -183,57 +184,59 @@ void loop() {
     }
    
     delay(1000);
-  
-    pmsa_array[i].read();
-    delay(1000);
-    if (pmsa_array[i]) {
-      // print results
-      // instead of printing, should be sending the data to
-      // a responsible sd card location in the format required.
 
-      // for particles less than 1.0ug/m3
-      airPartString+=(String(pmsa_array[i].pm01)+","+String(pmsa_array[i].pm25)+","+String(pmsa_array[i].pm10)+",");
-    /*
-      Don't know if these other readings are needed from the pmsa003
-      if (pmsa_array[i].has_number_concentration())
-      {
-        Serial.print(F("N0.3 "));
-        Serial.print(pmsa_array[i].n0p3);
-        Serial.print(F(", "));
-        Serial.print(F("N0.5 "));
-        Serial.print(pmsa_array[i].n0p5);
-        Serial.print(F(", "));
-        Serial.print(F("N1.0 "));
-        Serial.print(pmsa_array[i].n1p0);
-        Serial.print(F(", "));
-        Serial.print(F("N2.5 "));
-        Serial.print(pmsa_array[i].n2p5);
-        Serial.print(F(", "));
-        Serial.print(F("N5.0 "));
-        Serial.print(pmsa_array[i].n5p0);
-        Serial.print(F(", "));
-        Serial.print(F("N10 "));
-        Serial.print(pmsa_array[i].n10p0);
-        Serial.println(F(" [#/100cc]"));
+    if (i < 2) {
+      pmsa_array[i].read();
+      delay(1000);
+      if (pmsa_array[i]) {
+        // print results
+        // instead of printing, should be sending the data to
+        // a responsible sd card location in the format required.
+
+        // for particles less than 1.0ug/m3
+        airPartString+=(String(pmsa_array[i].pm01)+","+String(pmsa_array[i].pm25)+","+String(pmsa_array[i].pm10)+",");
+        /*
+        Don't know if these other readings are needed from the pmsa003
+        if (pmsa_array[i].has_number_concentration())
+        {
+          Serial.print(F("N0.3 "));
+          Serial.print(pmsa_array[i].n0p3);
+          Serial.print(F(", "));
+          Serial.print(F("N0.5 "));
+          Serial.print(pmsa_array[i].n0p5);
+          Serial.print(F(", "));
+          Serial.print(F("N1.0 "));
+          Serial.print(pmsa_array[i].n1p0);
+          Serial.print(F(", "));
+          Serial.print(F("N2.5 "));
+          Serial.print(pmsa_array[i].n2p5);
+          Serial.print(F(", "));
+          Serial.print(F("N5.0 "));
+          Serial.print(pmsa_array[i].n5p0);
+          Serial.print(F(", "));
+          Serial.print(F("N10 "));
+          Serial.print(pmsa_array[i].n10p0);
+          Serial.println(F(" [#/100cc]"));
+        }
+
+        if (pmsa_array[i].has_temperature_humidity() || pmsa_array[i].has_formaldehyde())
+        {
+          Serial.print(pmsa_array[i].temp, 1);
+          Serial.print(F(" °C"));
+          Serial.print(F(", "));
+          Serial.print(pmsa_array[i].rhum, 1);
+          Serial.print(F(" %rh"));
+          Serial.print(F(", "));
+          Serial.print(pmsa_array[i].hcho, 2);
+          Serial.println(F(" mg/m3 HCHO"));
+        }*/
+      } else {
+        airPartString+=("NULL,NULL,NULL,");
+        //put here led indicator 
+        
       }
-
-      if (pmsa_array[i].has_temperature_humidity() || pmsa_array[i].has_formaldehyde())
-      {
-        Serial.print(pmsa_array[i].temp, 1);
-        Serial.print(F(" °C"));
-        Serial.print(F(", "));
-        Serial.print(pmsa_array[i].rhum, 1);
-        Serial.print(F(" %rh"));
-        Serial.print(F(", "));
-        Serial.print(pmsa_array[i].hcho, 2);
-        Serial.println(F(" mg/m3 HCHO"));
-      }*/
-    } else {
-      airPartString+=("NULL,NULL,NULL,");
-      //put here led indicator 
-      
     }
-}
+  }
   
   tempString+=(String(SMTtemp)+","+timeStamp);
   humString+=(String(SMTmois)+","+timeStamp);
