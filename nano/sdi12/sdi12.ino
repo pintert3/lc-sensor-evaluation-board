@@ -46,7 +46,7 @@ void pollSensor(uint16_t* measurementValues) {
   }
 }
 
-void parseSdi12Cmd(String command, String dValues, measurementValues) {
+void parseSdi12Cmd(String command, String dValues, uint16_t* measurementValues) {
   /* Ingests a command from an SDI-12 master, sends the applicable response, and
    * (when applicable) sets a flag to initiate a measurement
    */
@@ -157,7 +157,7 @@ void loop() {
       // character is '!', stop listening and respond to the command
       if (charReceived == '!') {
         // Command string is completed; do something with it
-        parseSdi12Cmd(commandReceived, dValues);
+        parseSdi12Cmd(commandReceived, dValues, measurementValues);
         // Clear command string to reset for next command
         commandReceived = "";
         // '!' should be the last available character anyway, but exit the "for" loop
