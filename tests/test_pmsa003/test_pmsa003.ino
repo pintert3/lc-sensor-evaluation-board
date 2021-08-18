@@ -5,7 +5,8 @@ SerialPM pmSensor1(PMSA003, 10, 11);
 SerialPM pmSensor2(PMSA003, 8, 9);
 
 void setup() {
-  pmSensor.init();
+  pmSensor1.init();
+  pmSensor2.init();
 }
 
 void loop() {
