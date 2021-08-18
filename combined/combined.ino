@@ -4,12 +4,12 @@
 #include<SPI.h>
 #include "SD.h"
 #include "Adafruit_SHT31.h"
-#include "ClosedCube_HDC1080.h"
 #include "Adafruit_HTU21DF.h"
 #include "SdsDustSensor.h"
 #include <PMserial.h>
 #include "SoftwareSerial.h"
 #include <DS3231.h>
+#include "hdc.h"
 
 DS3231  rtc(SDA, SCL);
 //sdcard
@@ -20,7 +20,7 @@ File airPartFile;
 //tiny sensor objects
 Adafruit_BME280 bme[3];
 Adafruit_SHT31 sht31[3];
-ClosedCube_HDC1080 hdc1080[2];
+HDC1080 hdc1080[2];
 Adafruit_HTU21DF htu[3];
 
 //particulate matter objects
@@ -55,52 +55,72 @@ void Tcselect(uint8_t bus){
 ////// Reading fucntion for the small sensors /////
 void Readdata(int i){
   // the channel corresponds to the i so we shall use the same variable
-  Tcselect(i+1);
+  Tcselect(i+2);
+  delay(100);
   //check if sensor is connected if not it will cause the system to reset-- i don't know why yet
   // if the sensor is not connected, then its reading will be zero, that is under else block to be added.
   if (statusSHT[i]){
     tempString+=(String(sht31[i].readTemperature())+",");
+    delay(100);
     humString+=(String(sht31[i].readHumidity())+",");
+    delay(100);
   }else{
     tempString+=("NULL,");
     humString+=("NULL,");
     }
   if (statusBME[i]){
     tempString+=(String(bme[i].readTemperature())+",");
+    delay(100);
     humString+=(String(bme[i].readHumidity())+",");
+    delay(100);
   }else{
     tempString+=("NULL,");
     humString+=("NULL,");
     }
   if (statusHTU[i]){
     tempString+=(String(htu[i].readTemperature())+",");
+    delay(100);
     humString+=(String(htu[i].readHumidity())+",");
+    delay(100);
     
   }else{
     tempString+=("NULL,");
     humString+=("NULL,");
     }
   if (i<2){// we only have 2 of these
+    Tcselect(i+6);
     //We have to make sure they are connected otherwise since we have no status check for these yet.
     // Their ".begin()" doesn't return anything
-    tempString+=(String(hdc1080[i].readTemperature())+",");
-    humString+=(String(hdc1080[i].readHumidity())+",");
+    tempString+=(String(hdc1080[i].getTemperature())+",");
+    delay(100);
+    humString+=(String(hdc1080[i].getHumidity())+",");
+    delay(100);
   }
   
 }
 
 void setup() {
+  delay(9000);
  //initialize all the sensors
   Wire.begin();
+  delay(100);
   rtc.begin();
+  delay(100);
   for(int i=0;i<3;i++){
     //small sensors
-    Tcselect(i+1);// select channel 
+    Tcselect(i+2);// select channel 
+    delay(100);
     statusHTU[i] = htu[i].begin();
+    delay(100);
     statusSHT[i] = sht31[i].begin(); 
+    delay(100);
     statusBME[i] =bme[i].begin(0x76); 
+    delay(100);
     if(i<2){
-      hdc1080[i].begin(0x40);// doesn't return boolean so just intialize 
+      Tcselect(i+6);
+      delay(100);
+      hdc1080[i].begin();// doesn't return boolean so just intialize 
+      delay(100);
     }
     //big sensors
     pmsa_array[i].init();
@@ -125,7 +145,7 @@ void loop() {
     sds[i].wakeup();
     //need to include the set pin for the pmsa003 sleep and wakeup
     }
-    delay(40000);
+  delay(40000);
 
   //--reading the SMT---
   for (int i = 0; i < SMTmeasurements; i++)
@@ -145,21 +165,22 @@ void loop() {
     Readdata(i);// first read from the small sensors
     soft[i].listen();
     PmResult pm = sds[i].queryPm();
-  if (pm.isOk()) {
-    airPartString+=(String(pm.pm25)+","+String(pm.pm10)+",");
-  } else {
-    airPartString+=("NULL,NULL,");
-  }
+    if (pm.isOk()) {
+      airPartString+=(String(pm.pm25)+","+String(pm.pm10)+",");
+    } else {
+      airPartString+=("NULL,NULL,");
+    }
   
-  //sleep after reading an sds.
+    //sleep after reading an sds.
      WorkingStateResult state = sds[i].sleep();
-  if (!state.isWorking()) {
-    //indicator led for sleeping
-  }
+    if (!state.isWorking()) {
+      //indicator led for sleeping
+    }
    
-  delay(1000);
+    delay(1000);
   
-  pmsa_array[i].read();
+    pmsa_array[i].read();
+    delay(1000);
     if (pmsa_array[i]) {
       // print results
       // instead of printing, should be sending the data to
@@ -190,7 +211,7 @@ void loop() {
         Serial.print(pmsa_array[i].n10p0);
         Serial.println(F(" [#/100cc]"));
       }
-  
+
       if (pmsa_array[i].has_temperature_humidity() || pmsa_array[i].has_formaldehyde())
       {
         Serial.print(pmsa_array[i].temp, 1);
@@ -207,10 +228,10 @@ void loop() {
       //put here led indicator 
       
     }
-  }
+}
   
-  tempString+=timeStamp;
-  humString+=timeStamp;
+  tempString+=(String(SMTtemp)+","+timeStamp);
+  humString+=(String(SMTmois)+","+timeStamp);
   airPartString+=timeStamp;
   saveData(tempFile,tempString,"temp.csv");
   delay(1000);
@@ -222,15 +243,14 @@ delay (30000);
 }
 void saveData(File sensorData, String Data ,String filename){
   //assumes already the file with that name already exists on the card
-if(SD.exists(filename)){ // check the card is still there
-// now append new data file
-sensorData = SD.open(filename, FILE_WRITE);
-if (sensorData){
-sensorData.println(Data);
-sensorData.close(); // close the file
-}
-}
-else{
-//Serial.println("Error writing to file !"); place indicator led
-}
+  if(SD.exists(filename)){ // check the card is still there
+    // now append new data file
+    sensorData = SD.open(filename, FILE_WRITE);
+    if (sensorData){
+      sensorData.println(Data);
+      sensorData.close(); // close the file
+    }
+  }else{
+    //Serial.println("Error writing to file !"); place indicator led
+  }
 }
