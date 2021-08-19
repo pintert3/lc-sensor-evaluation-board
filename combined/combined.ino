@@ -1,7 +1,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
-#include<SPI.h>
+#include <SPI.h>
 #include "SD.h"
 #include "Adafruit_SHT31.h"
 #include "Adafruit_HTU21DF.h"
@@ -12,11 +12,13 @@
 #include "hdc.h"
 
 DS3231  rtc(SDA, SCL);
+
 //sdcard
 const int CSpin = 53;
 File tempFile;
 File humFile;
 File airPartFile;
+
 //tiny sensor objects
 Adafruit_BME280 bme[3];
 Adafruit_SHT31 sht31[3];
@@ -26,7 +28,7 @@ Adafruit_HTU21DF htu[3];
 //particulate matter objects
 SoftwareSerial soft[3]={SoftwareSerial(10,11),SoftwareSerial(12,13),SoftwareSerial(62,63)};
 SdsDustSensor sds[3]={SdsDustSensor(soft[0]),SdsDustSensor(soft[1]),SdsDustSensor(soft[2])}; //passing Softwareserial& as parameter
-SerialPM pmsa_array[3]={SerialPM(PMSA003, Serial1),SerialPM(PMSA003, Serial2),SerialPM(PMSA003, Serial3)};// passing HardwareSerial& as parameter
+SerialPM pmsa_array[2]={SerialPM(PMSA003, Serial1),SerialPM(PMSA003, Serial2)};// passing HardwareSerial& as parameter
 
 //small sensor status established in setup function
 unsigned statusBME[3];
@@ -43,6 +45,7 @@ String airPartString="";
 const int SMTmeasurements = 50;// multiple measurements to reduce noise error
 float SMTtemp=0.0;
 float SMTmois=0.0;
+
 
 // function to select channels
 void Tcselect(uint8_t bus){
@@ -64,19 +67,19 @@ void Readdata(int i){
     delay(100);
     humString+=(String(sht31[i].readHumidity())+",");
     delay(100);
-  }else{
+  } else {
     tempString+=("NULL,");
     humString+=("NULL,");
-    }
+  }
   if (statusBME[i]){
     tempString+=(String(bme[i].readTemperature())+",");
     delay(100);
     humString+=(String(bme[i].readHumidity())+",");
     delay(100);
-  }else{
+  } else {
     tempString+=("NULL,");
     humString+=("NULL,");
-    }
+  }
   if (statusHTU[i]){
     tempString+=(String(htu[i].readTemperature())+",");
     delay(100);
@@ -86,7 +89,7 @@ void Readdata(int i){
   }else{
     tempString+=("NULL,");
     humString+=("NULL,");
-    }
+  }
   if (i<2){// we only have 2 of these
     Tcselect(i+6);
     //We have to make sure they are connected otherwise since we have no status check for these yet.
@@ -123,7 +126,9 @@ void setup() {
       delay(100);
     }
     //big sensors
-    pmsa_array[i].init();
+    if (i < 2) {
+      pmsa_array[i].init();
+    }
     sds[i].begin(); // this line will begin soft-serial with given baud rate (9600 by default)
     sds[i].setQueryReportingMode(); // set reporting mode  
     }
@@ -132,6 +137,7 @@ void setup() {
     if (!SD.begin(CSpin)) {
       //put an indicator led
     }
+
 }
 
 void loop() {
@@ -178,57 +184,59 @@ void loop() {
     }
    
     delay(1000);
-  
-    pmsa_array[i].read();
-    delay(1000);
-    if (pmsa_array[i]) {
-      // print results
-      // instead of printing, should be sending the data to
-      // a responsible sd card location in the format required.
 
-      // for particles less than 1.0ug/m3
-      airPartString+=(String(pmsa_array[i].pm01)+","+String(pmsa_array[i].pm25)+","+String(pmsa_array[i].pm10)+",");
-    /*
-      Don't know if these other readings are needed from the pmsa003
-      if (pmsa_array[i].has_number_concentration())
-      {
-        Serial.print(F("N0.3 "));
-        Serial.print(pmsa_array[i].n0p3);
-        Serial.print(F(", "));
-        Serial.print(F("N0.5 "));
-        Serial.print(pmsa_array[i].n0p5);
-        Serial.print(F(", "));
-        Serial.print(F("N1.0 "));
-        Serial.print(pmsa_array[i].n1p0);
-        Serial.print(F(", "));
-        Serial.print(F("N2.5 "));
-        Serial.print(pmsa_array[i].n2p5);
-        Serial.print(F(", "));
-        Serial.print(F("N5.0 "));
-        Serial.print(pmsa_array[i].n5p0);
-        Serial.print(F(", "));
-        Serial.print(F("N10 "));
-        Serial.print(pmsa_array[i].n10p0);
-        Serial.println(F(" [#/100cc]"));
+    if (i < 2) {
+      pmsa_array[i].read();
+      delay(1000);
+      if (pmsa_array[i]) {
+        // print results
+        // instead of printing, should be sending the data to
+        // a responsible sd card location in the format required.
+
+        // for particles less than 1.0ug/m3
+        airPartString+=(String(pmsa_array[i].pm01)+","+String(pmsa_array[i].pm25)+","+String(pmsa_array[i].pm10)+",");
+        /*
+        Don't know if these other readings are needed from the pmsa003
+        if (pmsa_array[i].has_number_concentration())
+        {
+          Serial.print(F("N0.3 "));
+          Serial.print(pmsa_array[i].n0p3);
+          Serial.print(F(", "));
+          Serial.print(F("N0.5 "));
+          Serial.print(pmsa_array[i].n0p5);
+          Serial.print(F(", "));
+          Serial.print(F("N1.0 "));
+          Serial.print(pmsa_array[i].n1p0);
+          Serial.print(F(", "));
+          Serial.print(F("N2.5 "));
+          Serial.print(pmsa_array[i].n2p5);
+          Serial.print(F(", "));
+          Serial.print(F("N5.0 "));
+          Serial.print(pmsa_array[i].n5p0);
+          Serial.print(F(", "));
+          Serial.print(F("N10 "));
+          Serial.print(pmsa_array[i].n10p0);
+          Serial.println(F(" [#/100cc]"));
+        }
+
+        if (pmsa_array[i].has_temperature_humidity() || pmsa_array[i].has_formaldehyde())
+        {
+          Serial.print(pmsa_array[i].temp, 1);
+          Serial.print(F(" °C"));
+          Serial.print(F(", "));
+          Serial.print(pmsa_array[i].rhum, 1);
+          Serial.print(F(" %rh"));
+          Serial.print(F(", "));
+          Serial.print(pmsa_array[i].hcho, 2);
+          Serial.println(F(" mg/m3 HCHO"));
+        }*/
+      } else {
+        airPartString+=("NULL,NULL,NULL,");
+        //put here led indicator 
+        
       }
-
-      if (pmsa_array[i].has_temperature_humidity() || pmsa_array[i].has_formaldehyde())
-      {
-        Serial.print(pmsa_array[i].temp, 1);
-        Serial.print(F(" °C"));
-        Serial.print(F(", "));
-        Serial.print(pmsa_array[i].rhum, 1);
-        Serial.print(F(" %rh"));
-        Serial.print(F(", "));
-        Serial.print(pmsa_array[i].hcho, 2);
-        Serial.println(F(" mg/m3 HCHO"));
-      }*/
-    } else {
-      airPartString+=("NULL,NULL,NULL,");
-      //put here led indicator 
-      
     }
-}
+  }
   
   tempString+=(String(SMTtemp)+","+timeStamp);
   humString+=(String(SMTmois)+","+timeStamp);
@@ -239,8 +247,9 @@ void loop() {
   delay(1000);
   saveData(airPartFile,airPartString,"airpart.csv");
   
-delay (30000);
+  delay (30000);
 }
+
 void saveData(File sensorData, String Data ,String filename){
   //assumes already the file with that name already exists on the card
   if(SD.exists(filename)){ // check the card is still there
