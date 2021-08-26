@@ -22,7 +22,7 @@
 #include <SDI12.h>
 #include <PMserial.h>
 
-#define DATA_PIN 7   /*!< The pin of the SDI-12 data bus */
+#define DATA_PIN 11  /*!< The pin of the SDI-12 data bus */
 #define POWER_PIN -1 /*!< The sensor power pin (or -1 if not switching power) */
 
 char sensorAddress = '?';
@@ -30,7 +30,7 @@ int  state         = 1;
 
 #define WAIT 0
 
-SerialPM pmSensor(PMSA003, Serial);
+SerialPM pmSensor(PMSA003, Serial1); 
 // Create object by which to communicate with the SDI-12 bus on SDIPIN
 SDI12 slaveSDI12(DATA_PIN);
 
@@ -132,6 +132,7 @@ void setup() {
   delay(500);
   slaveSDI12.forceListen();  // sets SDIPIN as input to prepare for incoming message
   pmSensor.init();
+  Serial.begin(9600);
 }
 
 void loop() {
@@ -156,8 +157,13 @@ void loop() {
       // Character '!' indicates the end of an SDI-12 command; if the current
       // character is '!', stop listening and respond to the command
       if (charReceived == '!') {
+        Serial.print("commandReceived: "+ commandReceived+"\n"); // *****DEBUG********
         // Command string is completed; do something with it
         parseSdi12Cmd(commandReceived, dValues, measurementValues);
+        Serial.print("measurementValues sent: "); // *****DEBUG********
+        Serial.print(String(measurementValues[0])+ " "); // *****DEBUG********
+        Serial.print(String(measurementValues[1])+ " "); // *****DEBUG********
+        Serial.print(String(measurementValues[2])+ "\n"); // *****DEBUG********
         // Clear command string to reset for next command
         commandReceived = "";
         // '!' should be the last available character anyway, but exit the "for" loop
@@ -171,6 +177,7 @@ void loop() {
       // string.  Append the commandReceived String object.
       else {
         // Append command string with new character
+        Serial.print("character received: "+ String(charReceived)+ "\n");
         commandReceived += String(charReceived);
       }
     }
