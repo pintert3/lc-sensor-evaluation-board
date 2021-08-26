@@ -67,7 +67,7 @@ void parseSdi12Cmd(String command, String dValues, uint16_t* measurementValues) 
         // Identify command
         // Slave should respond with ID message: 2-char SDI-12 version + 8-char
         // company name + 6-char sensor model + 3-char sensor version + 0-13 char S/N
-        responseStr = "14PLANTOWE0000102.5001";  // PLANTOWER --!! Needs S/N
+        responseStr = "14PLANTOWE0000102.5C202005133463"; // serial might be temp
         break;
       
       case 'R':
