@@ -82,6 +82,7 @@ void parseSdi12Cmd(String command, String dValues, uint16_t* measurementValues) 
         */
 
         pollSensor(measurementValues);
+        formatOutputSDI(measurementValues, dValues, 75);
         responseStr = dValues; // TAHMO: should be a single value, cause only aR0 used
         break;
       
@@ -92,9 +93,9 @@ void parseSdi12Cmd(String command, String dValues, uint16_t* measurementValues) 
     }
   }
 
-  Serial.print("Sent response: " + String(sensorAddress) + responseStr + "\r\n");
   // Issue the response speficied in the switch-case structure above.
   slaveSDI12.sendResponse(String(sensorAddress) + responseStr + "\r\n");
+  Serial.print("Sent response: " + String(sensorAddress) + responseStr + "\r\n");
 }
 
 
@@ -132,7 +133,7 @@ void setup() {
   slaveSDI12.begin();
   delay(500);
   pmSensor.init();
-  delay(500);
+  delay(30000);
   Serial.begin(9600);
   slaveSDI12.forceListen();  // sets SDIPIN as input to prepare for incoming message
 }
