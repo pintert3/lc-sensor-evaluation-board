@@ -26,7 +26,8 @@
 #define POWER_PIN -1 /*!< The sensor power pin (or -1 if not switching power) */
 
 char sensorAddress = '?';
-int  state         = 1;
+// int  state         = 1;
+static uint16_t measurementValues[3];  // 3 ints to hold pmsa data
 
 #define WAIT 0
 
@@ -81,9 +82,6 @@ void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues)
          * 2. return the collected data
         */
 
-        slaveSDI12.forceHold();
-        pollSensor(measurementValues);
-        slaveSDI12.forceListen();
         formatOutputSDI(measurementValues, dValues, 75);
         responseStr = *dValues; // TAHMO: should be a single value, cause only aR0 used
         break;
@@ -138,15 +136,16 @@ void setup() {
   delay(30000);
   Serial.begin(9600);
   slaveSDI12.forceListen();  // sets SDIPIN as input to prepare for incoming message
+
+
+  pollSensor(measurementValues);
 }
 
 void loop() {
-  static uint16_t measurementValues[3];  // 3 ints to hold pmsa data
-  
+
   // TAHMO: Since we use only ?R0, this should only save space for one value (dvalues[1])
   static String dValues;  // 10 String objects to hold the responses to aD0!-aD9! commands
   static String commandReceived = "";  // String object to hold the incoming command
-
 
   // If a byte is available, an SDI message is queued up. Read in the entire message
   // before proceding.  It may be more robust to add a single character per loop()
@@ -172,6 +171,9 @@ void loop() {
         slaveSDI12.clearBuffer();
         // eliminate the chance of getting anything else after the '!'
         // slaveSDI12.forceHold();
+
+        delay(45000);
+        pollSensor(measurementValues);
         break;
       }
       // If the current character is anything but '!', it is part of the command
