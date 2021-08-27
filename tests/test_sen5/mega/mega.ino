@@ -92,6 +92,7 @@ void parseSdi12Cmd(String command, String dValues, uint16_t* measurementValues) 
     }
   }
 
+  Serial.print("Sent response: " + String(sensorAddress) + responseStr + "\r\n");
   // Issue the response speficied in the switch-case structure above.
   slaveSDI12.sendResponse(String(sensorAddress) + responseStr + "\r\n");
 }
@@ -130,9 +131,10 @@ void formatOutputSDI(uint16_t* measurementValues, String dValues, unsigned int m
 void setup() {
   slaveSDI12.begin();
   delay(500);
-  slaveSDI12.forceListen();  // sets SDIPIN as input to prepare for incoming message
   pmSensor.init();
+  delay(500);
   Serial.begin(9600);
+  slaveSDI12.forceListen();  // sets SDIPIN as input to prepare for incoming message
 }
 
 void loop() {
@@ -160,17 +162,13 @@ void loop() {
         Serial.print("commandReceived: "+ commandReceived+"\n"); // *****DEBUG********
         // Command string is completed; do something with it
         parseSdi12Cmd(commandReceived, dValues, measurementValues);
-        Serial.print("measurementValues sent: "); // *****DEBUG********
-        Serial.print(String(measurementValues[0])+ " "); // *****DEBUG********
-        Serial.print(String(measurementValues[1])+ " "); // *****DEBUG********
-        Serial.print(String(measurementValues[2])+ "\n"); // *****DEBUG********
         // Clear command string to reset for next command
         commandReceived = "";
         // '!' should be the last available character anyway, but exit the "for" loop
         // just in case there are any stray characters
         slaveSDI12.clearBuffer();
         // eliminate the chance of getting anything else after the '!'
-        slaveSDI12.forceHold();
+        // slaveSDI12.forceHold();
         break;
       }
       // If the current character is anything but '!', it is part of the command
@@ -178,7 +176,10 @@ void loop() {
       else {
         // Append command string with new character
         Serial.print("character received: "+ String(charReceived)+ "\n");
-        commandReceived += String(charReceived);
+        if (charReceived == '?') {
+          commandReceived += String(charReceived);
+          Serial.print("Actual character received: "+ String(charReceived)+ "\n");
+        }
       }
     }
   }
