@@ -175,8 +175,7 @@ void loop() {
       // string.  Append the commandReceived String object.
       else {
         // Append command string with new character
-        Serial.print("character received: "+ String(charReceived)+ "\n");
-        if (charReceived == '?') {
+        if ((commandReceived.length() == 0 && charReceived == '?') || commandReceived.charAt(0) == '?') {
           commandReceived += String(charReceived);
           Serial.print("Actual character received: "+ String(charReceived)+ "\n");
         }
