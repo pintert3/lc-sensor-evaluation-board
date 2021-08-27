@@ -46,7 +46,7 @@ void pollSensor(uint16_t* measurementValues) {
   }
 }
 
-void parseSdi12Cmd(String command, String dValues, uint16_t* measurementValues) {
+void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues) {
   /* Ingests a command from an SDI-12 master, sends the applicable response, and
    * (when applicable) sets a flag to initiate a measurement
    */
@@ -83,7 +83,7 @@ void parseSdi12Cmd(String command, String dValues, uint16_t* measurementValues) 
 
         pollSensor(measurementValues);
         formatOutputSDI(measurementValues, dValues, 75);
-        responseStr = dValues; // TAHMO: should be a single value, cause only aR0 used
+        responseStr = *dValues; // TAHMO: should be a single value, cause only aR0 used
         break;
       
       default:
@@ -99,10 +99,10 @@ void parseSdi12Cmd(String command, String dValues, uint16_t* measurementValues) 
 }
 
 
-void formatOutputSDI(uint16_t* measurementValues, String dValues, unsigned int maxChar) {
+void formatOutputSDI(uint16_t* measurementValues, String* dValues, unsigned int maxChar) {
   /* Ingests an array of floats and produces Strings in SDI-12 output format */
 
-  dValues = "";
+  *dValues = "";
   int j   = 0;
 
   // upper limit on i should be number of elements in measurementValues
@@ -115,10 +115,10 @@ void formatOutputSDI(uint16_t* measurementValues, String dValues, unsigned int m
     // need to check the length of pmsa data, and send it as integer, not float
     String valStr = String(measurementValues[i]); // TAHMO: change to pmsa data
     // Explictly add implied + sign if non-negative
-    if (valStr.charAt(0) != '-') { valStr = '+' + valStr; }
+    valStr = '+' + valStr;
     // Append dValues[j] if it will not exceed 35 (aM!) or 75 (aC!) characters
-    if (dValues.length() + valStr.length() < maxChar) {
-      dValues += valStr;
+    if (dValues->length() + valStr.length() < maxChar) {
+      *dValues += valStr;
     }
     // Start a new dValues "line" if appending would exceed 35/75 characters
     else {
@@ -162,7 +162,7 @@ void loop() {
       if (charReceived == '!') {
         Serial.print("commandReceived: "+ commandReceived+"\n"); // *****DEBUG********
         // Command string is completed; do something with it
-        parseSdi12Cmd(commandReceived, dValues, measurementValues);
+        parseSdi12Cmd(commandReceived, &dValues, measurementValues);
         // Clear command string to reset for next command
         commandReceived = "";
         // '!' should be the last available character anyway, but exit the "for" loop
