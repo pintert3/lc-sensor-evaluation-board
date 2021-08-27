@@ -96,6 +96,10 @@ void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues)
   // Issue the response speficied in the switch-case structure above.
   slaveSDI12.sendResponse(String(sensorAddress) + responseStr + "\r\n");
   //Serial.print("Sent response: " + String(sensorAddress) + responseStr + "\r\n");
+  if (command.charAt(1) == 'R') {
+    delay(45000);
+    pollSensor(measurementValues);
+  }
 }
 
 
@@ -172,8 +176,6 @@ void loop() {
         // eliminate the chance of getting anything else after the '!'
         // slaveSDI12.forceHold();
 
-        delay(45000);
-        pollSensor(measurementValues);
         break;
       }
       // If the current character is anything but '!', it is part of the command
