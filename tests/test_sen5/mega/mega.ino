@@ -81,7 +81,9 @@ void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues)
          * 2. return the collected data
         */
 
+        slaveSDI12.forceHold();
         pollSensor(measurementValues);
+        slaveSDI12.forceListen();
         formatOutputSDI(measurementValues, dValues, 75);
         responseStr = *dValues; // TAHMO: should be a single value, cause only aR0 used
         break;
