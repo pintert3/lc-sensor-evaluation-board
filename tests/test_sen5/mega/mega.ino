@@ -88,7 +88,7 @@ void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues)
       
       default:
         // Mostly for debugging; send back UNKN if unexpected command received
-        responseStr = "UNKN";
+        // responseStr = "UNKN";
         break;
     }
   }
@@ -176,7 +176,7 @@ void loop() {
       // string.  Append the commandReceived String object.
       else {
         // Append command string with new character
-        if ((commandReceived.length() == 0 && charReceived == '?') || commandReceived.charAt(0) == '?') {
+        if ((commandReceived.length() == 0 && charReceived == '?') || (commandReceived.length() != 0 && commandReceived.charAt(0) == '?') {
           commandReceived += String(charReceived);
           Serial.print("Actual character received: "+ String(charReceived)+ "\n");
         }
