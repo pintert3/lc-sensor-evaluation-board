@@ -95,7 +95,7 @@ void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues)
 
   // Issue the response speficied in the switch-case structure above.
   slaveSDI12.sendResponse(String(sensorAddress) + responseStr + "\r\n");
-  Serial.print("Sent response: " + String(sensorAddress) + responseStr + "\r\n");
+  //Serial.print("Sent response: " + String(sensorAddress) + responseStr + "\r\n");
 }
 
 
@@ -134,7 +134,7 @@ void setup() {
   delay(500);
   pmSensor.init();
   delay(30000);
-  Serial.begin(9600);
+  //Serial.begin(9600);
   slaveSDI12.forceListen();  // sets SDIPIN as input to prepare for incoming message
 
 
@@ -161,7 +161,7 @@ void loop() {
       // Character '!' indicates the end of an SDI-12 command; if the current
       // character is '!', stop listening and respond to the command
       if (charReceived == '!') {
-        Serial.print("commandReceived: "+ commandReceived+"\n"); // *****DEBUG********
+        //Serial.print("commandReceived: "+ commandReceived+"\n"); // *****DEBUG********
         // Command string is completed; do something with it
         parseSdi12Cmd(commandReceived, &dValues, measurementValues);
         // Clear command string to reset for next command
@@ -182,7 +182,7 @@ void loop() {
         // Append command string with new character
         if ((commandReceived.length() == 0 && charReceived == '?') || (commandReceived.length() != 0 && commandReceived.charAt(0) == '?')) {
           commandReceived += String(charReceived);
-          Serial.print("Actual character received: "+ String(charReceived)+ "\n");
+          //Serial.print("Actual character received: "+ String(charReceived)+ "\n");
         }
       }
     }
