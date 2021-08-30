@@ -98,11 +98,11 @@ void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues,
   //Serial.print("Sent response: " + String(sensorAddress) + responseStr + "\r\n");
   if (command.charAt(1) == 'I' ) {
     // Check if counter is counter is 2
-    counter++;
-    if (counter == 2) {
+    (*counter)++;
+    if (*counter == 2) {
       delay(45000);
       pollSensor(measurementValues);
-      counter = 0;
+      *counter = 0;
     }
   }
 }
