@@ -99,11 +99,11 @@ void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues,
   if (command.charAt(1) == 'I' ) {
     // Check if counter is counter is 2
     (*counter)++;
-    if (*counter == 2) {
-      delay(45000);
+    //if (*counter == 2) {
+      delay(30000);
       pollSensor(measurementValues);
-      *counter = 0;
-    }
+      //*counter = 0;
+    //}
   }
 }
 
