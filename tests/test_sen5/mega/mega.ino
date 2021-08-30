@@ -155,7 +155,7 @@ void loop() {
   // TAHMO: Since we use only ?R0, this should only save space for one value (dvalues[1])
   static String dValues;  // 10 String objects to hold the responses to aD0!-aD9! commands
   static String commandReceived = "";  // String object to hold the incoming command
-  uint8_t counter = 0;
+  static uint8_t counter = 0;
 
   // If a byte is available, an SDI message is queued up. Read in the entire message
   // before proceding.  It may be more robust to add a single character per loop()
