@@ -47,7 +47,7 @@ void pollSensor(uint16_t* measurementValues) {
   }
 }
 
-void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues) {
+void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues, uint8_t* counter) {
   /* Ingests a command from an SDI-12 master, sends the applicable response, and
    * (when applicable) sets a flag to initiate a measurement
    */
@@ -96,9 +96,14 @@ void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues)
   // Issue the response speficied in the switch-case structure above.
   slaveSDI12.sendResponse(String(sensorAddress) + responseStr + "\r\n");
   //Serial.print("Sent response: " + String(sensorAddress) + responseStr + "\r\n");
-  if (command.charAt(1) == 'R') {
-    delay(45000);
-    pollSensor(measurementValues);
+  if (command.charAt(1) == 'I' ) {
+    // Check if counter is counter is 2
+    counter++;
+    if (counter == 2) {
+      delay(45000);
+      pollSensor(measurementValues);
+      counter = 0;
+    }
   }
 }
 
@@ -150,6 +155,7 @@ void loop() {
   // TAHMO: Since we use only ?R0, this should only save space for one value (dvalues[1])
   static String dValues;  // 10 String objects to hold the responses to aD0!-aD9! commands
   static String commandReceived = "";  // String object to hold the incoming command
+  uint8_t counter = 0;
 
   // If a byte is available, an SDI message is queued up. Read in the entire message
   // before proceding.  It may be more robust to add a single character per loop()
@@ -167,7 +173,7 @@ void loop() {
       if (charReceived == '!') {
         //Serial.print("commandReceived: "+ commandReceived+"\n"); // *****DEBUG********
         // Command string is completed; do something with it
-        parseSdi12Cmd(commandReceived, &dValues, measurementValues);
+        parseSdi12Cmd(commandReceived, &dValues, measurementValues, &counter);
         // Clear command string to reset for next command
         commandReceived = "";
         // '!' should be the last available character anyway, but exit the "for" loop
