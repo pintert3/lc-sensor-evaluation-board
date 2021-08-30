@@ -27,7 +27,8 @@
 
 char sensorAddress = '?';
 // int  state         = 1;
-static uint16_t measurementValues[3];  // 3 ints to hold pmsa data
+uint16_t m_vals[3]; // for initial measurement values
+uint8_t INIT = 0; // initialisation state
 
 #define WAIT 0
 
@@ -147,7 +148,8 @@ void setup() {
   slaveSDI12.forceListen();  // sets SDIPIN as input to prepare for incoming message
 
 
-  pollSensor(measurementValues);
+  pollSensor(m_vals);
+  INIT = 1;
 }
 
 void loop() {
@@ -156,6 +158,13 @@ void loop() {
   static String dValues;  // 10 String objects to hold the responses to aD0!-aD9! commands
   static String commandReceived = "";  // String object to hold the incoming command
   static uint8_t counter = 0;
+  static uint16_t measurementValues[3];  // 3 ints to hold pmsa data
+  if INIT {
+    for (int i = 0; i < 3; i++) {
+      measurementValues[i] = m_vals[i];
+    }
+    INIT = 0;
+  }
 
   // If a byte is available, an SDI message is queued up. Read in the entire message
   // before proceding.  It may be more robust to add a single character per loop()
