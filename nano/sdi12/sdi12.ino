@@ -26,9 +26,8 @@
 #define POWER_PIN -1 /*!< The sensor power pin (or -1 if not switching power) */
 
 char sensorAddress = '?';
-int  state         = 1;
+static uint16_t measurementValues[3];  // 3 ints to hold pmsa data
 
-#define WAIT 0
 
 SerialPM pmSensor(PMSA003, Serial);
 // Create object by which to communicate with the SDI-12 bus on SDIPIN
@@ -46,7 +45,7 @@ void pollSensor(uint16_t* measurementValues) {
   }
 }
 
-void parseSdi12Cmd(String command, String dValues, uint16_t* measurementValues) {
+void parseSdi12Cmd(String command, String* dValues, uint16_t* measurementValues) {
   /* Ingests a command from an SDI-12 master, sends the applicable response, and
    * (when applicable) sets a flag to initiate a measurement
    */
@@ -81,26 +80,31 @@ void parseSdi12Cmd(String command, String dValues, uint16_t* measurementValues) 
          * 2. return the collected data
         */
 
-        pollSensor(measurementValues);
-        responseStr = dValues; // TAHMO: should be a single value, cause only aR0 used
+        formatOutputSDI(measurementValues, dValues, 75);
+        responseStr = *dValues; // TAHMO: should be a single value, cause only aR0 used
         break;
       
       default:
         // Mostly for debugging; send back UNKN if unexpected command received
-        responseStr = "UNKN";
+        // responseStr = "UNKN";
         break;
     }
   }
 
   // Issue the response speficied in the switch-case structure above.
   slaveSDI12.sendResponse(String(sensorAddress) + responseStr + "\r\n");
+  //Serial.print("Sent response: " + String(sensorAddress) + responseStr + "\r\n");
+  if (command.charAt(1) == 'R') {
+    delay(45000);
+    pollSensor(measurementValues);
+  }
 }
 
 
-void formatOutputSDI(uint16_t* measurementValues, String dValues, unsigned int maxChar) {
+void formatOutputSDI(uint16_t* measurementValues, String* dValues, unsigned int maxChar) {
   /* Ingests an array of floats and produces Strings in SDI-12 output format */
 
-  dValues = "";
+  *dValues = "";
   int j   = 0;
 
   // upper limit on i should be number of elements in measurementValues
@@ -113,10 +117,10 @@ void formatOutputSDI(uint16_t* measurementValues, String dValues, unsigned int m
     // need to check the length of pmsa data, and send it as integer, not float
     String valStr = String(measurementValues[i]); // TAHMO: change to pmsa data
     // Explictly add implied + sign if non-negative
-    if (valStr.charAt(0) != '-') { valStr = '+' + valStr; }
+    valStr = '+' + valStr;
     // Append dValues[j] if it will not exceed 35 (aM!) or 75 (aC!) characters
-    if (dValues.length() + valStr.length() < maxChar) {
-      dValues += valStr;
+    if (dValues->length() + valStr.length() < maxChar) {
+      *dValues += valStr;
     }
     // Start a new dValues "line" if appending would exceed 35/75 characters
     else {
@@ -130,17 +134,20 @@ void formatOutputSDI(uint16_t* measurementValues, String dValues, unsigned int m
 void setup() {
   slaveSDI12.begin();
   delay(500);
-  slaveSDI12.forceListen();  // sets SDIPIN as input to prepare for incoming message
   pmSensor.init();
+  delay(30000);
+  //Serial.begin(9600);
+  slaveSDI12.forceListen();  // sets SDIPIN as input to prepare for incoming message
+
+
+  pollSensor(measurementValues);
 }
 
 void loop() {
-  static uint16_t measurementValues[3];  // 3 ints to hold pmsa data
-  
+
   // TAHMO: Since we use only ?R0, this should only save space for one value (dvalues[1])
   static String dValues;  // 10 String objects to hold the responses to aD0!-aD9! commands
   static String commandReceived = "";  // String object to hold the incoming command
-
 
   // If a byte is available, an SDI message is queued up. Read in the entire message
   // before proceding.  It may be more robust to add a single character per loop()
@@ -157,21 +164,24 @@ void loop() {
       // character is '!', stop listening and respond to the command
       if (charReceived == '!') {
         // Command string is completed; do something with it
-        parseSdi12Cmd(commandReceived, dValues, measurementValues);
+        parseSdi12Cmd(commandReceived, &dValues, measurementValues);
         // Clear command string to reset for next command
         commandReceived = "";
         // '!' should be the last available character anyway, but exit the "for" loop
         // just in case there are any stray characters
         slaveSDI12.clearBuffer();
         // eliminate the chance of getting anything else after the '!'
-        slaveSDI12.forceHold();
+        // slaveSDI12.forceHold();
+
         break;
       }
       // If the current character is anything but '!', it is part of the command
       // string.  Append the commandReceived String object.
       else {
         // Append command string with new character
-        commandReceived += String(charReceived);
+        if ((commandReceived.length() == 0 && charReceived == '?') || (commandReceived.length() != 0 && commandReceived.charAt(0) == '?')) {
+          commandReceived += String(charReceived);
+        }
       }
     }
   }
