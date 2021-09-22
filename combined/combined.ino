@@ -11,6 +11,7 @@
 #include <DS3231.h>
 #include "hdc.h"
 #include <avr/wdt.h>
+#include <ArduinoJson.h>
 
 DS3231  rtc(SDA, SCL);
 
@@ -147,7 +148,7 @@ int I2C_ClearBus() {
 }
 
 ////// Reading fucntion for the small sensors /////
-void Readdata(int i){
+void Readdata(int i,StaticJsonDocument<200>&){
   error =2;
   wdt_enable( WDTO_8S);
   WDTCSR |= (1 << WDIE);  // Watchdog Interrupt Enable
@@ -267,6 +268,8 @@ void setup() {
 }
 
 void loop() {
+  
+  StaticJsonDocument<200> doc;
 //overrite the last strings 
   tempString="";
   humString="";
@@ -302,7 +305,7 @@ void loop() {
   //erial.println(timeStamp);
   //timeStamp="NULL";
   for(int i=0;i<3;i++){
-    Readdata(i);// first read from the small sensors
+    Readdata(i,doc);// first read from the small sensors
     soft[i].listen();
     PmResult pm = sds[i].queryPm();
     if (pm.isOk()) {
@@ -359,4 +362,7 @@ void saveData(File sensorData, String Data ,String filename){
   }else{
     //Serial.println("Error writing to file !"); place indicator led
   }
+}
+void jsonSave(StaticJsonDocument<200>& doc, char* sensor){
+
 }
