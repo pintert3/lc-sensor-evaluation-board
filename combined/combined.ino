@@ -17,10 +17,9 @@ DS3231  rtc(SDA, SCL);
 
 //sdcard
 const int CSpin = 53;
-File tempFile;
-File humFile;
-File airPartFile;
-File logsfile;
+
+File dataFile;
+// File logsfile;
 
 //tiny sensor objects
 Adafruit_BME280 bme[3];
@@ -50,31 +49,6 @@ float SMTtemp=0.0;
 float SMTmois=0.0;
 
 int error{0};
-ISR (WDT_vect)
-{
-  if (error ==1){
-    //Serial.println("error setting up 12c sensors");
-    saveData(logsfile,"error setting up i2c sensors","logs.txt");
-    //error ==0;
-    }
-  if (error ==2){
-    //Serial.println("error reading i2c sensors");
-    saveData(logsfile,"error reading i2c sensors","logs.txt");
-    //error ==0;
-    }
-  if (error ==3){
-    //Serial.println("error reading time");
-    saveData(logsfile,"error reading time","logs.txt");
-    //error ==0;
-    }
-  if (error ==4){
-    //Serial.println("error reading i2c sensors");
-    saveData(logsfile,"error setting up rtc","logs.txt");
-    //error ==0;
-    delay(1000);
-    // Add your own funky code here  (but do keep it short and sweet).
-}
-}
 
 // function to select channels
 void Tcselect(uint8_t bus){
@@ -148,7 +122,8 @@ int I2C_ClearBus() {
 }
 
 ////// Reading fucntion for the small sensors /////
-void Readdata(int i,StaticJsonDocument<200>&){
+void readData(int i,StaticJsonDocument<512>& doc){
+  JsonArray data;
   error =2;
   wdt_enable( WDTO_8S);
   WDTCSR |= (1 << WDIE);  // Watchdog Interrupt Enable
@@ -158,44 +133,91 @@ void Readdata(int i,StaticJsonDocument<200>&){
   delay(100);
   //check if sensor is connected if not it will cause the system to reset-- i don't know why yet
   // if the sensor is not connected, then its reading will be zero, that is under else block to be added.
+  data = doc.createNestedArray(String("sht_")+String(i));
   if (statusSHT[i]){
-    tempString+=(String(sht31[i].readTemperature())+",");
+    data.add(sht31[i].readTemperature());
     delay(100);
-    humString+=(String(sht31[i].readHumidity())+",");
+    data.add(sht31[i].readHumidity());
     delay(100);
   } else {
-    tempString+=("NULL,");
-    humString+=("NULL,");
+    data.add("NULL");
+    data.add("NULL");
   }
+  
+  data = doc.createNestedArray(String("bme_")+String(i));
   if (statusBME[i]){
-    tempString+=(String(bme[i].readTemperature())+",");
+    data.add(bme[i].readTemperature());
     delay(100);
-    humString+=(String(bme[i].readHumidity())+",");
+    data.add(bme[i].readHumidity());
     delay(100);
   } else {
-    tempString+=("NULL,");
-    humString+=("NULL,");
+    data.add("NULL");
+    data.add("NULL");
   }
+
+  data = doc.createNestedArray(String("htu_")+String(i));
   if (statusHTU[i]){
-    tempString+=(String(htu[i].readTemperature())+",");
+    data.add(htu[i].readTemperature());
     delay(100);
-    humString+=(String(htu[i].readHumidity())+",");
+    data.add(htu[i].readHumidity());
     delay(100);
     
   }else{
-    tempString+=("NULL,");
-    humString+=("NULL,");
+    data.add("NULL");
+    data.add("NULL");
   }
+
   if (i<2){// we only have 2 of these
+    data = doc.createNestedArray(String("hdc_")+String(i));
     Tcselect(i);
     //We have to make sure they are connected otherwise since we have no status check for these yet.
     // Their ".begin()" doesn't return anything
-    tempString+=(String(hdc1080[i].getTemperature())+",");
+    data.add(hdc1080[i].getTemperature());
     delay(100);
-    humString+=(String(hdc1080[i].getHumidity())+",");
+    data.add(hdc1080[i].getHumidity());
     delay(100);
   }
   wdt_disable();
+
+  soft[i].listen();
+  data = doc.createNestedArray(String("sds_")+String(i));
+  PmResult pm = sds[i].queryPm();
+  if (pm.isOk()) {
+    data.add(pm.pm25);
+    data.add(pm.pm10);
+  } else {
+    airPartString+=("NULL,NULL,");
+    data.add("NULL");
+    data.add("NULL");
+  }
+  //sleep after reading an sds.
+   WorkingStateResult state = sds[i].sleep();
+  if (!state.isWorking()) {
+    //indicator led for sleeping
+  }
+ 
+  delay(1000);
+
+  if (i < 2) {
+    data = doc.createNestedArray(String("pmsa_")+String(i));
+    pmsa_array[i].read();
+    delay(1000);
+    if (pmsa_array[i]) {
+      
+      
+      airPartString+=(String(pmsa_array[i].pm01)+","+String(pmsa_array[i].pm25)+","+String(pmsa_array[i].pm10)+",");
+      data.add(pmsa_array[i].pm01);
+      data.add(pmsa_array[i].pm25);
+      data.add(pmsa_array[i].pm10);
+      
+    } else {
+      data.add("NULL");
+      data.add("NULL");
+      data.add("NULL");
+      //put here led indicator 
+      
+    }
+  }
 }
 
 void setup() {
@@ -269,7 +291,8 @@ void setup() {
 
 void loop() {
   
-  StaticJsonDocument<200> doc;
+  char payload[512];
+  StaticJsonDocument<512> doc;
 //overrite the last strings 
   tempString="";
   humString="";
@@ -305,48 +328,18 @@ void loop() {
   //erial.println(timeStamp);
   //timeStamp="NULL";
   for(int i=0;i<3;i++){
-    Readdata(i,doc);// first read from the small sensors
-    soft[i].listen();
-    PmResult pm = sds[i].queryPm();
-    if (pm.isOk()) {
-      airPartString+=(String(pm.pm25)+","+String(pm.pm10)+",");
-    } else {
-      airPartString+=("NULL,NULL,");
-    }
-    Serial.println("food");
-    //sleep after reading an sds.
-     WorkingStateResult state = sds[i].sleep();
-    if (!state.isWorking()) {
-      //indicator led for sleeping
-    }
-   
-    delay(1000);
-
-    if (i < 2) {
-      pmsa_array[i].read();
-      delay(1000);
-      if (pmsa_array[i]) {
-        
-        
-        airPartString+=(String(pmsa_array[i].pm01)+","+String(pmsa_array[i].pm25)+","+String(pmsa_array[i].pm10)+",");
-        
-      } else {
-        airPartString+=("NULL,NULL,NULL,");
-        //put here led indicator 
-        
-      }
-    }
+    readData(i,doc);// first read from the small sensors
   }
+
+  JsonArray data = doc.createNestedArray("soil");
+  data.add(SMTtemp);
+  data.add(SMTmois);
+  doc["timestamp"] = timeStamp;
+
+  serializeJson(doc, payload);
   
-  tempString+=(String(SMTtemp)+","+timeStamp);
-  humString+=(String(SMTmois)+","+timeStamp);
-  airPartString+=timeStamp;
-  saveData(tempFile,tempString,"temp.csv");
-  delay(1000);
-  saveData(humFile,humString,"hum.csv");
-  delay(1000);
-  saveData(airPartFile,airPartString,"airpart.csv");
-  
+  saveData(dataFile, payload, "data.txt");
+
   delay (30000);
 }
 
@@ -362,7 +355,4 @@ void saveData(File sensorData, String Data ,String filename){
   }else{
     //Serial.println("Error writing to file !"); place indicator led
   }
-}
-void jsonSave(StaticJsonDocument<200>& doc, char* sensor){
-
 }
