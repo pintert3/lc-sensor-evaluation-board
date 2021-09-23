@@ -46,6 +46,46 @@ float SMTtemp=0.0;
 float SMTmois=0.0;
 
 int error{0};
+//////gsm
+#include <avr/wdt.h>
+//#include <SoftwareSerial.h>
+#define TINY_GSM_MODEM_SIM800
+#define SerialMon Serial
+#if !defined(TINY_GSM_RX_BUFFER)
+#define TINY_GSM_RX_BUFFER 650 // for response
+#endif
+#define TINY_GSM_DEBUG SerialMon
+#define GSM_AUTOBAUD_MIN 9600
+#define GSM_AUTOBAUD_MAX 9600
+#define pinReset 6
+SoftwareSerial SerialAT(64, 65);  // RX, TX
+#include <TinyGsmClient.h>
+#include <ArduinoHttpClient.h>
+
+int juice =0;
+// network  connection
+const char apn[]      = "internet";
+const char gprsUser[] = "";
+const char gprsPass[] = "";
+
+
+//communication variables
+const char server[]   = "35.226.209.188";
+char resource[]="/api_v1/general/";//endpoint will be hard written here
+String contentType ="application/json";
+const int  port       = 80;//port http
+
+// timing variables
+unsigned long mytime;
+unsigned long period =18000;
+unsigned long currenttime;
+
+TinyGsm        modem(SerialAT);
+
+TinyGsmClient client(modem);
+HttpClient          http(client, server, port);
+volatile int counter; //delay counter     
+volatile int countmax = 3; 
 
 // function to select channels
 void Tcselect(uint8_t bus){
@@ -214,7 +254,7 @@ void readData(int i,StaticJsonDocument<1024>& doc){
 }
 
 void setup() {
-  Serial.begin(9600);
+  SerialMon.begin(115200);
    int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
   if (rtn != 0) {
     //Serial.println(F("I2C bus error. Could not clear"));
@@ -241,7 +281,7 @@ void setup() {
   rtc.begin();
   wdt_disable();
   delay(100);
-  Serial.println("after begin");
+  //Serial.println("after begin");
   error =1;
   wdt_enable( WDTO_8S);
   WDTCSR |= (1 << WDIE);  // Watchdog Interrupt Enable
@@ -257,7 +297,7 @@ void setup() {
     delay(100);
     statusBME[i] =bme[i].begin(0x76); 
     delay(100);
-    Serial.println("before begin");
+    //Serial.println("before begin");
     if(i<2){
       Tcselect(i);
       delay(100);
@@ -283,6 +323,8 @@ void setup() {
 }
 
 void loop() {
+  mytime =millis();
+  SerialMon.println(millis());
   
   char payload[1024];
   StaticJsonDocument<1024> doc;
@@ -293,7 +335,7 @@ void loop() {
     sds[i].wakeup();
     //need to include the set pin for the pmsa003 sleep and wakeup
     }
-    Serial.println("waking up");
+    //Serial.println("waking up");
   delay(40000);
 
   //--reading the SMT---
@@ -318,7 +360,7 @@ void loop() {
   for(int i=0;i<3;i++){
     readData(i,doc);// first read from the small sensors
   }
-
+  SerialMon.println(millis());
   JsonArray data = doc.createNestedArray("soil");
   data.add(SMTtemp);
   data.add(SMTmois);
@@ -327,6 +369,9 @@ void loop() {
   serializeJson(doc, payload);
   
   saveData(dataFile, payload, "data.txt");
+  SerialMon.println(millis());
+  setupgsm();
+  connectnet(payload);
 
   delay (30000);
 }
@@ -342,5 +387,133 @@ void saveData(File sensorData, String Data ,String filename){
     }
   }else{
     //Serial.println("Error writing to file !"); place indicator led
+  }
+}
+//gsm functions
+
+void setupgsm(){
+  pinMode(pinReset ,OUTPUT);//reset pin
+  // Set console baud rate
+  //SerialMon.begin(115200);
+  delay(10);
+  digitalWrite(pinReset, HIGH);
+  delay(500);
+  digitalWrite(pinReset, LOW);
+  delay(500);
+  digitalWrite(pinReset, HIGH);
+  delay(3000);
+
+  SerialMon.println("Wait...");
+  //modem.setBaud(9600);
+  TinyGsmAutoBaud(SerialAT, GSM_AUTOBAUD_MIN, GSM_AUTOBAUD_MAX);
+  // SerialAT.begin(9600);
+  delay(6000);
+  // Restart takes quite some time
+  // To skip it, call init() instead of restart()
+  SerialMon.println("Initializing modem...");
+  modem.restart();
+   //modem.init();
+  String modemInfo = modem.getModemInfo();
+  SerialMon.print("Modem Info: ");
+  SerialMon.println(modemInfo);
+}
+ void connectnet(char* postData){
+  SerialMon.print("Waiting for network...");
+  if (!modem.waitForNetwork()) {
+    SerialMon.println(" fail");
+    watchdogEnable(); 
+    while(true);  
+  }
+  SerialMon.println(" success");
+  if (modem.isNetworkConnected()) { 
+    SerialMon.println("Network connected");
+  }
+    SerialMon.print(F("Connecting to "));
+  SerialMon.print(apn);
+  if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
+    SerialMon.println(" fail");
+    watchdogEnable(); 
+      while(true);
+  }
+  SerialMon.println(" success");
+
+  if (modem.isGprsConnected()) {
+    SerialMon.println("GPRS connected"); 
+  }
+  
+  watchdogEnable();
+  SerialMon.print(F("Performing HTTPS GET request... "));
+  //http.connectionKeepAlive();  // Currently, this is needed for HTTPS
+  //int err = http.get(resource);
+  int err = http.post(resource,contentType,postData);//even if they are char arrays
+  if (err != 0) {
+    SerialMon.println(F("failed to connect"));
+  }
+  wdt_disable();
+  Serial.println("**** starting loop ****");
+  int status = http.responseStatusCode();
+  SerialMon.print(F("Response status code: "));
+  SerialMon.println(status);
+  if (!status) {
+    delay(10000);
+    return;
+  }
+  watchdogEnable(); 
+  SerialMon.println(F("Response Headers:"));
+  while (http.headerAvailable()) {
+    String headerName  = http.readHeaderName();
+    String headerValue = http.readHeaderValue();
+    //SerialMon.println("    " + headerName + " : " + headerValue);
+  }
+  int length = http.contentLength();
+  if (length >= 0) {
+    //SerialMon.print(F("Content length is: "));
+    //SerialMon.println(length);
+  }
+  if (http.isResponseChunked()) {
+    //SerialMon.println(F("The response is chunked"));
+  }
+
+  String body = http.responseBody();
+  //SerialMon.println(F("Response:"));
+  //SerialMon.println(body);
+
+  //SerialMon.print(F("Body length is: "));
+  //SerialMon.println(body.length());
+  wdt_disable();
+  juice++;
+  
+  http.stop();
+  SerialMon.println(F("Server disconnected"));
+  modem.gprsDisconnect();
+  SerialMon.println(F("GPRS disconnected"));
+  currenttime=millis();
+  while(currenttime-mytime<period){
+    currenttime=millis();
+  } 
+  delay(10000);
+}
+void watchdogEnable()
+{
+  counter=0;
+  cli();                             
+  MCUSR = 0;                                                                                             
+  WDTCSR |= 0b00011000;                                                  
+  WDTCSR =  0b01000000 | 0b100001;                                        
+  sei();                              
+}
+ISR(WDT_vect) 
+{
+  counter+=1;
+  if (counter < countmax)
+  {
+    wdt_reset(); 
+  }
+  else             
+  {
+    MCUSR = 0;                          // reset flags                            
+    WDTCSR |= 0b00011000;               
+    WDTCSR =  0b00001000 | 0b000000;    
+    
   }
 }
