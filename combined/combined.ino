@@ -18,6 +18,10 @@ DS3231  rtc(SDA, SCL);
 //sdcard
 const int CSpin = 53;
 
+// data age
+const uint8_t NEW_DATA = 1;
+const uint8_t OLD_DATA = 1;
+
 File dataFile;
 // File logsfile;
 
@@ -62,7 +66,6 @@ SoftwareSerial SerialAT(64, 65);  // RX, TX
 #include <TinyGsmClient.h>
 #include <ArduinoHttpClient.h>
 
-int juice =0;
 // network  connection
 const char apn[]      = "internet";
 const char gprsUser[] = "";
@@ -359,7 +362,13 @@ void loop() {
   saveData(dataFile, payload, "data.txt");
   SerialMon.println(millis());
   setupgsm();
-  connectnet(payload);
+  connectnet();
+  if sendData(payload, NEW_DATA) {
+    while time_left > time_to_send {
+      payload = readOldData();
+      sendData(payload, OLD_DATA);
+    }
+  }
 
   delay (30000);
 }
@@ -405,7 +414,7 @@ void setupgsm(){
   SerialMon.print("Modem Info: ");
   SerialMon.println(modemInfo);
 }
- void connectnet(char* postData){
+ void connectnet(){
   SerialMon.print("Waiting for network...");
   if (!modem.waitForNetwork()) {
     SerialMon.println(" fail");
@@ -429,47 +438,6 @@ void setupgsm(){
     SerialMon.println("GPRS connected"); 
   }
   
-  watchdogEnable();
-  SerialMon.print(F("Performing HTTPS GET request... "));
-  //http.connectionKeepAlive();  // Currently, this is needed for HTTPS
-  //int err = http.get(resource);
-  int err = http.post(resource,contentType,postData);//even if they are char arrays
-  if (err != 0) {
-    SerialMon.println(F("failed to connect"));
-  }
-  wdt_disable();
-  Serial.println("**** starting loop ****");
-  int status = http.responseStatusCode();
-  SerialMon.print(F("Response status code: "));
-  SerialMon.println(status);
-  if (!status) {
-    delay(10000);
-    return;
-  }
-  watchdogEnable(); 
-  SerialMon.println(F("Response Headers:"));
-  while (http.headerAvailable()) {
-    String headerName  = http.readHeaderName();
-    String headerValue = http.readHeaderValue();
-    //SerialMon.println("    " + headerName + " : " + headerValue);
-  }
-  int length = http.contentLength();
-  if (length >= 0) {
-    //SerialMon.print(F("Content length is: "));
-    //SerialMon.println(length);
-  }
-  if (http.isResponseChunked()) {
-    //SerialMon.println(F("The response is chunked"));
-  }
-
-  String body = http.responseBody();
-  //SerialMon.println(F("Response:"));
-  //SerialMon.println(body);
-
-  //SerialMon.print(F("Body length is: "));
-  //SerialMon.println(body.length());
-  wdt_disable();
-  juice++;
   
   http.stop();
   SerialMon.println(F("Server disconnected"));
@@ -504,4 +472,52 @@ ISR(WDT_vect)
     WDTCSR =  0b00001000 | 0b000000;    
     
   }
+}
+
+int sendData(char* data, uint8_t age) {
+  watchdogEnable(); // In case connection to server fails
+  SerialMon.print(F("Performing HTTP POST request... "));
+  //http.connectionKeepAlive();  // Currently, this is needed for HTTPS
+  //int err = http.get(resource);
+  int err = http.post(resource,contentType,postData);//even if they are char arrays
+  if (err != 0) {
+    SerialMon.println(F("failed to connect"));
+    while(true); // To be caught by WDT
+  }
+  wdt_disable();
+  Serial.println("**** starting loop ****");
+  int status = http.responseStatusCode();
+  SerialMon.print(F("Response status code: "));
+  SerialMon.println(status);
+  if (status != 200) {
+    return 0;
+  }
+  watchdogEnable(); 
+  SerialMon.println(F("Response Headers:"));
+  while (http.headerAvailable()) {
+    String headerName  = http.readHeaderName();
+    String headerValue = http.readHeaderValue();
+    //SerialMon.println("    " + headerName + " : " + headerValue);
+  }
+  int length = http.contentLength();
+  if (length >= 0) {
+    //SerialMon.print(F("Content length is: "));
+    //SerialMon.println(length);
+  }
+  if (http.isResponseChunked()) {
+    //SerialMon.println(F("The response is chunked"));
+  }
+
+  String body = http.responseBody();
+  //SerialMon.println(F("Response:"));
+  //SerialMon.println(body);
+
+  //SerialMon.print(F("Body length is: "));
+  //SerialMon.println(body.length());
+  wdt_disable();
+  
+  markData(age);
+}
+
+void markData(uint8_t age) {
 }
