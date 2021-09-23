@@ -124,10 +124,7 @@ int I2C_ClearBus() {
 ////// Reading fucntion for the small sensors /////
 void readData(int i,StaticJsonDocument<512>& doc){
   JsonArray data;
-  error =2;
   wdt_enable( WDTO_8S);
-  WDTCSR |= (1 << WDIE);  // Watchdog Interrupt Enable
-  WDTCSR |= (1 << WDE); // Watchdog  System Reset Enable
   // the channel corresponds to the i so we shall use the same variable
   Tcselect(i+2);
   delay(100);
@@ -241,18 +238,12 @@ void setup() {
  //initialize all the sensors
   //Wire.begin();
   delay(100);
-  error =4;
   wdt_enable( WDTO_8S);
-  WDTCSR |= (1 << WDIE);  // Watchdog Interrupt Enable
-  WDTCSR |= (1 << WDE); // Watchdog  System Reset Enable
   rtc.begin();
   wdt_disable();
   delay(100);
   Serial.println("after begin");
-  error =1;
   wdt_enable( WDTO_8S);
-  WDTCSR |= (1 << WDIE);  // Watchdog Interrupt Enable
-  WDTCSR |= (1 << WDE); // Watchdog  System Reset Enable
   for(int i=0;i<3;i++){
     //small sensors
     Tcselect(i+2);// select channel 
@@ -319,10 +310,7 @@ void loop() {
   //tempString+=(String(SMTtemp)+",");
   
   ///major loop here tor read all the other sensors that are in 3s
-  error =3;
   wdt_enable( WDTO_8S);
-  WDTCSR |= (1 << WDIE);  // Watchdog Interrupt Enable
-  WDTCSR |= (1 << WDE); // Watchdog  System Reset Enable
   timeStamp=(String(rtc.getDateStr())+"-"+String(rtc.getTimeStr()));
   wdt_disable();
   //erial.println(timeStamp);
