@@ -18,6 +18,10 @@ DS3231  rtc(SDA, SCL);
 //sdcard
 const int CSpin = 53;
 
+// timing
+const int PERIOD = 300000;
+const int DATA_SEND_TIME = 180000;
+
 // data age
 const uint8_t NEW_DATA = 1;
 const uint8_t OLD_DATA = 1;
@@ -317,7 +321,7 @@ void setup() {
 }
 
 void loop() {
-  mytime =millis();
+  unsigned long startTime = millis();
   SerialMon.println(millis());
   
   char payload[1024];
@@ -364,9 +368,13 @@ void loop() {
   setupgsm();
   connectnet();
   if (sendData(payload, NEW_DATA)) {
-    while (time_left > time_to_send) {
-      payload = readOldData();
-      sendData(payload, OLD_DATA);
+    unsigned long time_left = PERIOD - (millis() - startTime);
+    while (time_left > DATA_SEND_TIME) {
+      if (readOldData(payload)) {
+        sendData(payload, OLD_DATA);
+      } else {
+        break;
+      }
     }
   }
 
@@ -520,5 +528,17 @@ int sendData(char* postData, uint8_t age) {
 }
 
 void markData(uint8_t age) {
+  if (age == NEW_DATA) {
+    // something
+  } else {
+    // something else
+  }
 }
-char[] readOldData(){}
+int readOldData(char* output){
+  // Should return 1 if old data is found
+  // else, it should return 0
+  for(int i = 0; i < 1024; i++) {
+    output[i] = '0';
+  }
+  return 1;
+}
