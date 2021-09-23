@@ -39,9 +39,6 @@ unsigned statusHTU[3];
 
 //data strings that will be written to the sdcard
 String timeStamp="";
-String tempString="";
-String humString="";
-String airPartString="";
 
 //for the soil moisture and temp sensor
 const int SMTmeasurements = 50;// multiple measurements to reduce noise error
@@ -67,11 +64,7 @@ int I2C_ClearBus() {
   pinMode(SCL, INPUT_PULLUP);
 
   delay(2500);  // Wait 2.5 secs. This is strictly only necessary on the first power
-  // up of the DS3231 module to allow it to initialize properly,
-  // but is also assists in reliable programming of FioV3 boards as it gives the
-  // IDE a chance to start uploaded the program
-  // before existing sketch confuses the IDE by sending Serial data.
-
+ 
   boolean SCL_LOW = (digitalRead(SCL) == LOW); // Check is SCL is Low.
   if (SCL_LOW) { //If it is held low Arduno cannot become the I2C master. 
     return 1; //I2C bus error. Could not clear SCL clock line held low
@@ -122,7 +115,7 @@ int I2C_ClearBus() {
 }
 
 ////// Reading fucntion for the small sensors /////
-void readData(int i,StaticJsonDocument<512>& doc){
+void readData(int i,StaticJsonDocument<1024>& doc){
   JsonArray data;
   error =2;
   wdt_enable( WDTO_8S);
@@ -133,7 +126,7 @@ void readData(int i,StaticJsonDocument<512>& doc){
   delay(100);
   //check if sensor is connected if not it will cause the system to reset-- i don't know why yet
   // if the sensor is not connected, then its reading will be zero, that is under else block to be added.
-  data = doc.createNestedArray(String("sht_")+String(i));
+  data = doc.createNestedArray(String("sht_")+String(i+1));
   if (statusSHT[i]){
     data.add(sht31[i].readTemperature());
     delay(100);
@@ -144,7 +137,7 @@ void readData(int i,StaticJsonDocument<512>& doc){
     data.add("NULL");
   }
   
-  data = doc.createNestedArray(String("bme_")+String(i));
+  data = doc.createNestedArray(String("bme_")+String(i+1));
   if (statusBME[i]){
     data.add(bme[i].readTemperature());
     delay(100);
@@ -155,7 +148,7 @@ void readData(int i,StaticJsonDocument<512>& doc){
     data.add("NULL");
   }
 
-  data = doc.createNestedArray(String("htu_")+String(i));
+  data = doc.createNestedArray(String("htu_")+String(i+1));
   if (statusHTU[i]){
     data.add(htu[i].readTemperature());
     delay(100);
@@ -168,7 +161,7 @@ void readData(int i,StaticJsonDocument<512>& doc){
   }
 
   if (i<2){// we only have 2 of these
-    data = doc.createNestedArray(String("hdc_")+String(i));
+    data = doc.createNestedArray(String("hdc_")+String(i+1));
     Tcselect(i);
     //We have to make sure they are connected otherwise since we have no status check for these yet.
     // Their ".begin()" doesn't return anything
@@ -180,13 +173,13 @@ void readData(int i,StaticJsonDocument<512>& doc){
   wdt_disable();
 
   soft[i].listen();
-  data = doc.createNestedArray(String("sds_")+String(i));
+  data = doc.createNestedArray(String("sds_")+String(i+1));
   PmResult pm = sds[i].queryPm();
   if (pm.isOk()) {
     data.add(pm.pm25);
     data.add(pm.pm10);
   } else {
-    airPartString+=("NULL,NULL,");
+    
     data.add("NULL");
     data.add("NULL");
   }
@@ -199,13 +192,13 @@ void readData(int i,StaticJsonDocument<512>& doc){
   delay(1000);
 
   if (i < 2) {
-    data = doc.createNestedArray(String("pmsa_")+String(i));
+    data = doc.createNestedArray(String("pmsa_")+String(i+1));
     pmsa_array[i].read();
     delay(1000);
     if (pmsa_array[i]) {
       
       
-      airPartString+=(String(pmsa_array[i].pm01)+","+String(pmsa_array[i].pm25)+","+String(pmsa_array[i].pm10)+",");
+      
       data.add(pmsa_array[i].pm01);
       data.add(pmsa_array[i].pm25);
       data.add(pmsa_array[i].pm10);
@@ -291,12 +284,9 @@ void setup() {
 
 void loop() {
   
-  char payload[512];
-  StaticJsonDocument<512> doc;
+  char payload[1024];
+  StaticJsonDocument<1024> doc;
 //overrite the last strings 
-  tempString="";
-  humString="";
-  airPartString="";
   // wake up the big sensors
   for(int i=0;i<3;i++){
     soft[i].listen();
@@ -316,8 +306,7 @@ void loop() {
   SMTmois= (SMTmois/SMTmeasurements)*5/1024;
   SMTtemp = (SMTtemp-0.5)*100;
   SMTmois = SMTmois*50/3;
-  //tempString+=(String(SMTtemp)+",");
-  
+ 
   ///major loop here tor read all the other sensors that are in 3s
   error =3;
   wdt_enable( WDTO_8S);
@@ -325,8 +314,7 @@ void loop() {
   WDTCSR |= (1 << WDE); // Watchdog  System Reset Enable
   timeStamp=(String(rtc.getDateStr())+"-"+String(rtc.getTimeStr()));
   wdt_disable();
-  //erial.println(timeStamp);
-  //timeStamp="NULL";
+  
   for(int i=0;i<3;i++){
     readData(i,doc);// first read from the small sensors
   }
