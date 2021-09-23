@@ -363,8 +363,8 @@ void loop() {
   SerialMon.println(millis());
   setupgsm();
   connectnet();
-  if sendData(payload, NEW_DATA) {
-    while time_left > time_to_send {
+  if (sendData(payload, NEW_DATA)) {
+    while (time_left > time_to_send) {
       payload = readOldData();
       sendData(payload, OLD_DATA);
     }
@@ -474,7 +474,7 @@ ISR(WDT_vect)
   }
 }
 
-int sendData(char* data, uint8_t age) {
+int sendData(char* postData, uint8_t age) {
   watchdogEnable(); // In case connection to server fails
   SerialMon.print(F("Performing HTTP POST request... "));
   //http.connectionKeepAlive();  // Currently, this is needed for HTTPS
@@ -521,3 +521,4 @@ int sendData(char* data, uint8_t age) {
 
 void markData(uint8_t age) {
 }
+char[] readOldData(){}
