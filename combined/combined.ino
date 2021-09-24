@@ -12,6 +12,20 @@
 #include "hdc.h"
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
+#include <TinyGsmClient.h>
+#include <ArduinoHttpClient.h>
+
+//////gsm
+#define TINY_GSM_MODEM_SIM800
+#define SerialMon Serial
+#if !defined(TINY_GSM_RX_BUFFER)
+#define TINY_GSM_RX_BUFFER 650 // for response
+#endif
+#define TINY_GSM_DEBUG SerialMon
+#define GSM_AUTOBAUD_MIN 9600
+#define GSM_AUTOBAUD_MAX 9600
+#define pinReset 6
+SoftwareSerial SerialAT(64, 65);  // RX, TX
 
 DS3231  rtc(SDA, SCL);
 
@@ -53,22 +67,6 @@ const int SMTmeasurements = 50;// multiple measurements to reduce noise error
 float SMTtemp=0.0;
 float SMTmois=0.0;
 
-int error{0};
-//////gsm
-#include <avr/wdt.h>
-//#include <SoftwareSerial.h>
-#define TINY_GSM_MODEM_SIM800
-#define SerialMon Serial
-#if !defined(TINY_GSM_RX_BUFFER)
-#define TINY_GSM_RX_BUFFER 650 // for response
-#endif
-#define TINY_GSM_DEBUG SerialMon
-#define GSM_AUTOBAUD_MIN 9600
-#define GSM_AUTOBAUD_MAX 9600
-#define pinReset 6
-SoftwareSerial SerialAT(64, 65);  // RX, TX
-#include <TinyGsmClient.h>
-#include <ArduinoHttpClient.h>
 
 // network  connection
 const char apn[]      = "internet";
