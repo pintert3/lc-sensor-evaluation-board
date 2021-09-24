@@ -19,7 +19,7 @@ DS3231  rtc(SDA, SCL);
 const int CSpin = 53;
 
 // timing
-const int PERIOD = 300000;
+const int PERIOD = 300;
 const int DATA_SEND_TIME = 180000;
 
 // data age
@@ -378,6 +378,12 @@ void loop() {
     }
   }
 
+  http.stop();
+  SerialMon.println(F("Server disconnected"));
+  modem.gprsDisconnect();
+  SerialMon.println(F("GPRS disconnected"));
+  
+  
   delay (30000);
 }
 
@@ -447,14 +453,7 @@ void setupgsm(){
   }
   
   
-  http.stop();
-  SerialMon.println(F("Server disconnected"));
-  modem.gprsDisconnect();
-  SerialMon.println(F("GPRS disconnected"));
-  currenttime=millis();
-  while(currenttime-mytime<period){
-    currenttime=millis();
-  } 
+
   delay(10000);
 }
 void watchdogEnable()
