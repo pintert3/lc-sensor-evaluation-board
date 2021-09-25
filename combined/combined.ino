@@ -191,16 +191,11 @@ void readData(int i,StaticJsonDocument<1024>& doc){
   }
 
   data = doc.createNestedArray(String("htu_")+String(i+1));
-  if (statusHTU[i]){
+    htu[i].readHumidity();
     data.add(htu[i].readTemperature());
     delay(100);
     data.add(htu[i].readHumidity());
     delay(100);
-    
-  }else{
-    data.add("NULL");
-    data.add("NULL");
-  }
 
   if (i<2){// we only have 2 of these
     data = doc.createNestedArray(String("hdc_")+String(i+1));
