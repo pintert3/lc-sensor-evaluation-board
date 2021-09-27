@@ -38,7 +38,8 @@ const int DATA_SEND_TIME = 180000;
 
 // data age
 const uint8_t NEW_DATA = 1;
-const uint8_t OLD_DATA = 1;
+const uint8_t OLD_DATA = 0;
+const uint8_t OLD_DATA_AVAILABLE =1;
 
 File dataFile;
 // File logsfile;
@@ -362,11 +363,13 @@ void loop() {
   connectnet();
   if (sendData(payload, NEW_DATA)) {
     unsigned long time_left = PERIOD - (millis() - startTime);
-    while (time_left > DATA_SEND_TIME) {
-      if (readOldData(payload)) {
-        sendData(payload, OLD_DATA);
-      } else {
-        break;
+    if(OLD_DATA_AVAILABLE){
+      while (time_left > DATA_SEND_TIME) {
+        if (readOldData(payload)) {
+          sendData(payload, OLD_DATA);
+        } else {
+          break;
+        }
       }
     }
   }
