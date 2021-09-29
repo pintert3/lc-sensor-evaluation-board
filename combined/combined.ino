@@ -80,11 +80,6 @@ char resource[]="/api_v1/general/";//endpoint will be hard written here
 String contentType ="application/json";
 const int  port       = 80;//port http
 
-// timing variables
-unsigned long mytime;
-unsigned long period =18000;
-unsigned long currenttime;
-
 TinyGsm        modem(SerialAT);
 
 TinyGsmClient client(modem);
@@ -365,10 +360,11 @@ void loop() {
   SerialMon.println(millis());
   setupgsm();
   connectnet();
+
   if (sendData(payload, NEW_DATA)) {
     unsigned long time_left = PERIOD - (millis() - startTime);
     while (time_left > DATA_SEND_TIME) {
-      if (readOldData(payload)) {
+      if (readOldData(payload, &dataFile)) {
         sendData(payload, OLD_DATA);
       } else {
         break;
@@ -387,7 +383,7 @@ void loop() {
 
 void saveData(File sensorData, String Data ,String filename){
   //assumes already the file with that name already exists on the card
-  if(SD.exists(filename)){ // check the card is still there
+  if(SD.exists(filename)){ // check the card and file is there
     // now append new data file
     sensorData = SD.open(filename, FILE_WRITE);
     if (sensorData){
@@ -426,6 +422,8 @@ void setupgsm(){
   SerialMon.print("Modem Info: ");
   SerialMon.println(modemInfo);
 }
+
+
  void connectnet(){
   SerialMon.print("Waiting for network...");
   if (!modem.waitForNetwork()) {
@@ -450,10 +448,10 @@ void setupgsm(){
     SerialMon.println("GPRS connected"); 
   }
   
-  
-
   delay(10000);
 }
+
+
 void watchdogEnable()
 {
   counter=0;
@@ -521,21 +519,51 @@ int sendData(char* postData, uint8_t age) {
   //SerialMon.println(body.length());
   wdt_disable();
   
-  markData(age);
+  markData(age, &dataFile);
 }
 
-void markData(uint8_t age) {
+void markData(uint8_t age, File* file) {
+  if(SD.exists(filename)){ 
+    // open data file
+    sensorData = SD.open(filename, FILE_READ);
+    if (sensorData){
+      sensorData.println(Data);
+      sensorData.close(); // close the file
+    }
+  }else{
+    //Serial.println("Error writing to file !"); place indicator led
+  }
+
   if (age == NEW_DATA) {
-    // something
+    // if new data, mark last line of file as sent(?)
   } else {
-    // something else
+    // if old data, mark first unsent old data line of file as sent
   }
 }
-int readOldData(char* output){
+
+int readOldData(char* output, File* file, String filename){
   // Should return 1 if old data is found
   // else, it should return 0
+
+  if(SD.exists(filename)){ 
+    char read_buffer[512] // 
+
+    // open data file if filename exists
+    sensorData = SD.open(filename, FILE_READ);
+    if (sensorData){
+      // TODO: Read data from file
+      sensorData.peek()
+      sensorData.close(); // close the file
+    }
+  }else{
+    //Serial.println("Error writing to file !"); place indicator led
+  }
+
+  // read 1st char of sd card
+  // if not ?, seek 512 chars forward
   for(int i = 0; i < 1024; i++) {
     output[i] = '0';
   }
   return 1;
 }
+
