@@ -38,7 +38,8 @@ const int DATA_SEND_TIME = 180000;
 
 // data age
 const uint8_t NEW_DATA = 1;
-const uint8_t OLD_DATA = 1;
+const uint8_t OLD_DATA = 0;
+const uint8_t OLD_DATA_AVAILABLE =1;
 
 File dataFile;
 // File logsfile;
@@ -186,16 +187,11 @@ void readData(int i,StaticJsonDocument<1024>& doc){
   }
 
   data = doc.createNestedArray(String("htu_")+String(i+1));
-  if (statusHTU[i]){
+    htu[i].readHumidity();
     data.add(htu[i].readTemperature());
     delay(100);
     data.add(htu[i].readHumidity());
     delay(100);
-    
-  }else{
-    data.add("NULL");
-    data.add("NULL");
-  }
 
   if (i<2){// we only have 2 of these
     data = doc.createNestedArray(String("hdc_")+String(i+1));
@@ -363,11 +359,13 @@ void loop() {
 
   if (sendData(payload, NEW_DATA)) {
     unsigned long time_left = PERIOD - (millis() - startTime);
-    while (time_left > DATA_SEND_TIME) {
-      if (readOldData(payload, &dataFile)) {
-        sendData(payload, OLD_DATA);
-      } else {
-        break;
+    if(OLD_DATA_AVAILABLE){
+      while (time_left > DATA_SEND_TIME) {
+        if (readOldData(payload)) {
+          sendData(payload, OLD_DATA);
+        } else {
+          break;
+        }
       }
     }
   }
