@@ -46,7 +46,7 @@ int readOldData(char* output, String filename){
       // TODO: Read data from file
       nextChar = sensorData.peek();
       while (nextChar >= 0) {
-        if (nextChar != '?') {
+        if (nextChar == '!') {
           Serial.println("UnMarked."); // DEBUG
           blinkled(LED);
           sensorData.seek(sensorData.position()+1);
@@ -58,12 +58,14 @@ int readOldData(char* output, String filename){
           Serial.println(String(buffer));
           delay(2000);
           break;
-        } else {
+        } else if (nextChar == '?') {
           sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2);
           nextChar = sensorData.peek(); // DEBUG
           Serial.print("Next one: ");
           Serial.println(nextChar);
           delay(1000);
+        } else {
+          Serial.println("Error, data is not well formatted");
         }
       }
 
@@ -75,6 +77,8 @@ int readOldData(char* output, String filename){
       } else {
         return 1;
       }
+    } else {
+      return 0;
     }
   }else{
     //Serial.println("Error writing to file !"); place indicator led
@@ -119,16 +123,18 @@ void markData(uint8_t age, String filename) {
         sensorData.seek(0);
         nextChar = sensorData.peek();
         while (nextChar > 0) { // not expecting zero(0)
-          if (nextChar != '?') {
+          if (nextChar == '!') {
             blinkled(LED);
             Serial.println(nextChar);
             sensorData.write('?');
             Serial.println("Done Marking."); // DEBUG
             break;
-          } else {
+          } else if (nextChar == '?') {
             sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2); // Skip the ? and the \n
             nextChar = sensorData.peek();
             Serial.println(nextChar);
+          } else {
+            Serial.println("Error, data is not well formatted");
           }
         }
       }
