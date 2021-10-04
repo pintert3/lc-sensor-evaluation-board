@@ -4,32 +4,91 @@ const int LED = 4;
 int oldDataAvailable = 1;
 const uint8_t FILE_LINE_LENGTH = 9;
 const uint8_t NEW_DATA = 1;
+const uint8_t OLD_DATA = 0;
 
 void setup() {
   pinMode(53, OUTPUT);
   pinMode(LED, OUTPUT);
   Serial.begin(9600);
   SD.begin(53);
-  delay(5000); // 5 sec to start minicom
+  delay(8000); // 5 sec to start minicom
   Serial.println("..--=====STARTED=====--..");
+
+  // tests
+  char output[512] = {};
+  int passed = 0;
+  passed += test_read_old_data(output);
+  passed += test_mark_data(NEW_DATA);
+  passed += test_mark_data(OLD_DATA);
+  Serial.println("............................");
+  Serial.print(String("Passed: ")+String(passed));
+  Serial.println(" out of 3 tests");
+  Serial.println("...........................\n");
 }
 
 void loop() {
-  char output[512] = {};
-  //char* payload;
-  if (readOldData(output, String("neuer.txt"))) {
+}
+
+int test_mark_data(uint8_t age) {
+  int check;
+  if (age) {
+    check = markData(age, String("mark_new.txt"));
+  } else {
+    check = markData(age, String("mark_old.txt"));
+  }
+
+  if (!check) {
+    Serial.println("Marked");
+    Serial.print("Test Mark");
+    Serial.print(String((age) ? "New data" : "Old data"));
+    Serial.println(".....SUCCESS");
+    return 1;
+  } else {
+    switch (check) {
+      case 1:
+        Serial.println("No data to mark found.");
+        break;
+      case 2:
+        Serial.println("Error, data is not well formatted.");
+        break;
+      case 3: 
+        Serial.println("Error: File couldn't be opened.");
+        break;
+      case 4:
+        Serial.println("Error: no file with that name found.");
+        break;
+      default:
+        Serial.println("Unexpected error.");
+        break;
+    }
+    Serial.print("Test Mark");
+    Serial.print(String((age) ? "New data" : "Old data"));
+    Serial.println(".....FAILED");
+    return 0;
+  }
+}
+
+int test_read_old_data(char output[]) {
+  if (readOldData(output, String("old_data.txt"))) {
     Serial.println("------------------\n");
     Serial.print("Output:");
     Serial.println(String(output));
-    //Serial.print("Payload:");
-    //Serial.println(String(payload));
     Serial.println("------------------\n");
-    markData(0, String("neuer.txt"));
+    if (String(output) == String("ghijkl")) {
+      Serial.println("Test Read_Old_Data.....SUCCESS");
+      return 1;
+    } else {
+      Serial.println("Wrong String returned");
+      Serial.println("Test Read_Old_Data.....FAILED");
+      return 0;
+    }
+  } else {
+    Serial.println("Failed to read old data.");
+    Serial.println("Test Read_Old_Data.....FAILED");
+    return 0;
   }
-  //Serial.println("Read data:");
-  //Serial.println(output);
-  delay(4000);
 }
+
 
 int readOldData(char* output, String filename){
   // Should return 1 if old data is found
@@ -52,20 +111,12 @@ int readOldData(char* output, String filename){
           sensorData.seek(sensorData.position()+1);
           sensorData.read(buffer, FILE_LINE_LENGTH);
           prepare_payload(buffer, output);
-          delay(500);
-          Serial.println("Unprocessed:");
-          delay(500);
-          Serial.println(String(buffer));
-          delay(2000);
           break;
         } else if (nextChar == '?') {
           sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2);
           nextChar = sensorData.peek(); // DEBUG
-          Serial.print("Next one: ");
-          Serial.println(nextChar);
-          delay(1000);
-        } else {
-          Serial.println("Error, data is not well formatted");
+        } else { // formatting error
+          return 0;
         }
       }
 
@@ -106,7 +157,8 @@ void prepare_payload(char* unfiltered_data, char* output) {
 }
 
 
-void markData(uint8_t age, String filename) {
+int markData(uint8_t age, String filename) {
+  int output_code = 1;
   char nextChar;
   if(SD.exists(filename)){
     // open data file
@@ -115,19 +167,26 @@ void markData(uint8_t age, String filename) {
       Serial.println("Marking...");
       if (age == NEW_DATA) {
         // seek back to start of last line and add '?'
-        sensorData.seek(sensorData.position()+(FILE_LINE_LENGTH*-1) - 2); // need to overwrite 
-        nextChar = sensorData.peek();
+        nextChar=sensorData.peek();
+        while (nextChar != -1) {
+          sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2);
+          nextChar = sensorData.peek();
+        }
+        Serial.print("end found: ");
         Serial.println(nextChar);
+        sensorData.seek(sensorData.position()+(FILE_LINE_LENGTH*-1) - 2); 
         sensorData.write('?');
-      } else {
-        sensorData.seek(0);
+        output_code = 0;
+      } else { // Marking OLD_DATA
+        // sensorData.seek(0);
         nextChar = sensorData.peek();
-        while (nextChar > 0) { // not expecting zero(0)
+        while (nextChar != -1) { // not expecting zero(0)
           if (nextChar == '!') {
             blinkled(LED);
             Serial.println(nextChar);
             sensorData.write('?');
             Serial.println("Done Marking."); // DEBUG
+            output_code = 0;
             break;
           } else if (nextChar == '?') {
             sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2); // Skip the ? and the \n
@@ -135,12 +194,18 @@ void markData(uint8_t age, String filename) {
             Serial.println(nextChar);
           } else {
             Serial.println("Error, data is not well formatted");
+            output_code = 2; // means error with data format(arrangement)
           }
         }
       }
       sensorData.close();
     }else{
-      Serial.println("Error: no file with that name found.");
+      Serial.println("Error: File couldn't be opened");
+      output_code = 3;
     }
+  } else {
+    Serial.println("Error: no file with that name found.");
+    output_code = 4;
   }
+  return output_code;
 }
