@@ -1,0 +1,7 @@
+?abcdef	00
+!ghijkl	00
+?mnopqr	00
+!hello	000
+!none	0000
+?hullos	00
+!co	000000
