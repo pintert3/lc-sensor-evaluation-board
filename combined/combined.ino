@@ -525,7 +525,7 @@ void markData(uint8_t age, File* file) {
     // open data file
     sensorData = SD.open(filename, FILE_READ);
     if (sensorData){
-      sensorData.println(Data);
+      //sensorData.println(Data);
       sensorData.close(); // close the file
     }
   }else{
