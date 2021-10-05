@@ -34,7 +34,7 @@ const int CSpin = 53;
 
 // timing
 const int PERIOD = 300;
-const int DATA_SEND_TIME = 180000;
+const unsigned long DATA_SEND_TIME = 180000;
 
 // data formatting and storage
 const unsigned int FILE_LINE_LENGTH = 512;
