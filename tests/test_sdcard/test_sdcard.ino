@@ -114,7 +114,7 @@ int readOldData(char* output, String filename){
           break;
         } else if (nextChar == '?') {
           sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2);
-          nextChar = sensorData.peek(); // DEBUG
+          nextChar = sensorData.peek(); 
         } else { // formatting error
           return 0;
         }
@@ -167,11 +167,12 @@ int markData(uint8_t age, String filename) {
       Serial.println("Marking...");
       if (age == NEW_DATA) {
         // seek back to start of last line and add '?'
-        nextChar=sensorData.peek();
-        while (nextChar != -1) {
-          sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2);
-          nextChar = sensorData.peek();
-        }
+        // nextChar=sensorData.peek();
+        // while (nextChar != -1) {
+        //   sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2);
+        //   nextChar = sensorData.peek();
+        // }
+        sensorData.seek(sensorData.size());
         Serial.print("end found: ");
         Serial.println(nextChar);
         sensorData.seek(sensorData.position()+(FILE_LINE_LENGTH*-1) - 2); 

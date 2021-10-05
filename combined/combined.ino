@@ -33,11 +33,11 @@ DS3231  rtc(SDA, SCL);
 const int CSpin = 53;
 
 // timing
-const int PERIOD = 300;
 const unsigned long DATA_SEND_TIME = 180000;
+const unsigned long PERIOD = DATA_SEND_TIME;
 
 // data formatting and storage
-const unsigned int FILE_LINE_LENGTH = 512;
+const unsigned int FILE_LINE_LENGTH = 520;
 const String dataFile = String("data.txt");
 
 // data age
@@ -357,8 +357,12 @@ void loop() {
   serializeJson(doc, payload);
   
   String dataToSave = String(payload);
-  formatData(dataToSave);
-  saveData(dataToSave, "data.txt");
+  Serial.print("data to save: ")
+  Serial.println(dataToSave);
+  Serial.print("payload: ")
+  Serial.println(payload);
+  formatData(&dataToSave);
+  saveData(dataToSave, dataFile);
   SerialMon.println(millis());
   setupgsm();
   connectnet();
@@ -368,7 +372,7 @@ void loop() {
     unsigned long time_left = PERIOD - (millis() - startTime);
     if (OLD_DATA_AVAILABLE) {
       while (time_left > DATA_SEND_TIME) {
-        if (readOldData(payload, String("data.txt"))) {
+        if (readOldData(payload, dataFile)) {
           sendData(payload, OLD_DATA);
         } else {
           break;
@@ -526,20 +530,21 @@ int sendData(char* postData, uint8_t age) {
   //SerialMon.println(body.length());
   wdt_disable();
   
-  markData(age, String("data.txt"));
+  markData(age, dataFile);
+  return 1;
 }
 
 
-void formatData(String input) {
+void formatData(String *input) {
   // formats input char string to fixed length output with \t at end padded
   // with zero characters ('0')
 
-  int original_length = input.length();
+  int original_length = input->length();
   if (original_length < FILE_LINE_LENGTH) {
     int numzeros = FILE_LINE_LENGTH - original_length - 1;
-    input += '\t';
+    *input += '\t';
     for (int i = 0; i < numzeros; i++) {
-      input += '0';
+      *input += '0';
     }
   }
 }
@@ -610,11 +615,7 @@ int markData(uint8_t age, String filename) {
     if (sensorData){
       if (age == NEW_DATA) {
         // seek back to start of last line and add '?'
-        nextChar=sensorData.peek();
-        while (nextChar != -1) {
-          sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2);
-          nextChar = sensorData.peek();
-        }
+        sensorData.seek(sensorData.size());
         sensorData.seek(sensorData.position()+(FILE_LINE_LENGTH*-1) - 2); 
         sensorData.write('?');
         output_code = 0;
