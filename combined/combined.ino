@@ -36,12 +36,16 @@ const int CSpin = 53;
 const int PERIOD = 300;
 const int DATA_SEND_TIME = 180000;
 
+// data formatting and storage
+const unsigned int FILE_LINE_LENGTH = 512;
+const String dataFile = String("data.txt");
+
 // data age
 const uint8_t NEW_DATA = 1;
 const uint8_t OLD_DATA = 0;
-const uint8_t OLD_DATA_AVAILABLE =1;
+uint8_t OLD_DATA_AVAILABLE = 1;
 
-File dataFile;
+// File dataFile;
 // File logsfile;
 
 //tiny sensor objects
@@ -352,20 +356,24 @@ void loop() {
 
   serializeJson(doc, payload);
   
-  saveData(dataFile, payload, "data.txt");
+  String dataToSave = String(payload);
+  formatData(dataToSave);
+  saveData(dataToSave, "data.txt");
   SerialMon.println(millis());
   setupgsm();
   connectnet();
 
+  // how to change OLD_DATA_AVAILABLE to true?
   if (sendData(payload, NEW_DATA)) {
     unsigned long time_left = PERIOD - (millis() - startTime);
-    if(OLD_DATA_AVAILABLE){
+    if (OLD_DATA_AVAILABLE) {
       while (time_left > DATA_SEND_TIME) {
-        if (readOldData(payload)) {
+        if (readOldData(payload, String("data.txt"))) {
           sendData(payload, OLD_DATA);
         } else {
           break;
         }
+        time_left = PERIOD - (millis() - startTime);
       }
     }
   }
@@ -379,17 +387,18 @@ void loop() {
   delay (30000);
 }
 
-void saveData(File sensorData, String Data ,String filename){
+void saveData(String Data ,String filename){
   //assumes already the file with that name already exists on the card
   if(SD.exists(filename)){ // check the card and file is there
     // now append new data file
-    sensorData = SD.open(filename, FILE_WRITE);
+    File sensorData = SD.open(filename, FILE_WRITE);
     if (sensorData){
-      sensorData.println(Data);
+      sensorData.println(String('!')+Data);
       sensorData.close(); // close the file
     }
   }else{
     //Serial.println("Error writing to file !"); place indicator led
+    // maybe return something?
   }
 }
 //gsm functions
@@ -517,51 +526,120 @@ int sendData(char* postData, uint8_t age) {
   //SerialMon.println(body.length());
   wdt_disable();
   
-  markData(age, &dataFile);
+  markData(age, String("data.txt"));
 }
 
-void markData(uint8_t age, File* file) {
-  if(SD.exists(filename)){ 
-    // open data file
-    sensorData = SD.open(filename, FILE_READ);
-    if (sensorData){
-      //sensorData.println(Data);
-      sensorData.close(); // close the file
+
+void formatData(String input) {
+  // formats input char string to fixed length output with \t at end padded
+  // with zero characters ('0')
+
+  int original_length = input.length();
+  if (original_length < FILE_LINE_LENGTH) {
+    int numzeros = FILE_LINE_LENGTH - original_length - 1;
+    input += '\t';
+    for (int i = 0; i < numzeros; i++) {
+      input += '0';
     }
-  }else{
-    //Serial.println("Error writing to file !"); place indicator led
-  }
-
-  if (age == NEW_DATA) {
-    // if new data, mark last line of file as sent(?)
-  } else {
-    // if old data, mark first unsent old data line of file as sent
   }
 }
 
-int readOldData(char* output, File* file, String filename){
+int readOldData(char* output, String filename){
   // Should return 1 if old data is found
   // else, it should return 0
+  // NOTE: Could output error codes instead.
+
+  char nextChar = -1;
 
   if(SD.exists(filename)){ 
-    char read_buffer[512] // 
+    char buffer[FILE_LINE_LENGTH];
 
-    // open data file if filename exists
-    sensorData = SD.open(filename, FILE_READ);
-    if (sensorData){
-      // TODO: Read data from file
-      sensorData.peek()
+    // open data file if opening went well
+    File sensorData = SD.open(filename, FILE_READ);
+    if (sensorData) { // if file was able to open
+      nextChar = sensorData.peek();
+      while (nextChar >= 0) {
+        if (nextChar == '!') {
+          sensorData.seek(sensorData.position()+1);
+          sensorData.read(buffer, FILE_LINE_LENGTH);
+          prepare_payload(buffer, output);
+          break;
+        } else if (nextChar == '?') {
+          sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2);
+          nextChar = sensorData.peek();
+        } else { // formatting error
+          return 0;
+        }
+      }
+
       sensorData.close(); // close the file
+
+      if (nextChar < 0) {
+        OLD_DATA_AVAILABLE = 0;
+        return 0;
+      } else {
+        return 1;
+      }
+    } else {
+      return 0;
     }
   }else{
     //Serial.println("Error writing to file !"); place indicator led
+    return 0;
   }
 
-  // read 1st char of sd card
-  // if not ?, seek 512 chars forward
-  for(int i = 0; i < 1024; i++) {
-    output[i] = '0';
-  }
-  return 1;
 }
 
+void prepare_payload(char* unfiltered_data, char* output) {
+  // loop forwards the array of length FILE_LINE_LENGTH
+  // until find \t character.
+  // send that to payload
+  int i;
+  for (i = 0; ((i < FILE_LINE_LENGTH) && (unfiltered_data[i] != '\t')); i++) {
+    output[i] = unfiltered_data[i];
+  }
+}
+
+
+int markData(uint8_t age, String filename) {
+  int output_code = 1;
+  char nextChar;
+  if(SD.exists(filename)){
+    // open data file
+    File sensorData = SD.open(filename, O_RDWR);
+    if (sensorData){
+      if (age == NEW_DATA) {
+        // seek back to start of last line and add '?'
+        nextChar=sensorData.peek();
+        while (nextChar != -1) {
+          sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2);
+          nextChar = sensorData.peek();
+        }
+        sensorData.seek(sensorData.position()+(FILE_LINE_LENGTH*-1) - 2); 
+        sensorData.write('?');
+        output_code = 0;
+      } else { // Marking OLD_DATA
+        // sensorData.seek(0);
+        nextChar = sensorData.peek();
+        while (nextChar != -1) { // not expecting zero(0)
+          if (nextChar == '!') {
+            sensorData.write('?');
+            output_code = 0;
+            break;
+          } else if (nextChar == '?') {
+            sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2); // Skip the ? and the \n
+            nextChar = sensorData.peek();
+          } else {
+            output_code = 2; // means error with data format(arrangement)
+          }
+        }
+      }
+      sensorData.close();
+    }else{
+      output_code = 3;
+    }
+  } else {
+    output_code = 4;
+  }
+  return output_code;
+}
