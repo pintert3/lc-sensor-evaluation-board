@@ -357,7 +357,7 @@ void loop() {
   serializeJson(doc, payload);
   
   char dataToSave[FILE_LINE_LENGTH+1];
-  strcpy(dataToSave, payload);
+  strcpy(dataToSave, payload); // should copy the first 512 bytes + 0
 
   formatData(dataToSave);
   saveData(dataToSave, dataFile);
