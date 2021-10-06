@@ -317,7 +317,7 @@ void loop() {
   unsigned long startTime = millis();
   SerialMon.println(millis());
   
-  char payload[1024];
+  char payload[1024] = {0};
   StaticJsonDocument<1024> doc;
 //overrite the last strings 
   // wake up the big sensors
@@ -356,12 +356,10 @@ void loop() {
 
   serializeJson(doc, payload);
   
-  String dataToSave = String(payload);
-  Serial.print("data to save: ")
-  Serial.println(dataToSave);
-  Serial.print("payload: ")
-  Serial.println(payload);
-  formatData(&dataToSave);
+  char dataToSave[FILE_LINE_LENGTH+1];
+  strcpy(dataToSave, payload);
+
+  formatData(dataToSave);
   saveData(dataToSave, dataFile);
   SerialMon.println(millis());
   setupgsm();
@@ -391,13 +389,15 @@ void loop() {
   delay (30000);
 }
 
-void saveData(String Data ,String filename){
+void saveData(char Data[FILE_LINE_LENGTH+1] ,String filename){
   //assumes already the file with that name already exists on the card
   if(SD.exists(filename)){ // check the card and file is there
     // now append new data file
     File sensorData = SD.open(filename, FILE_WRITE);
     if (sensorData){
-      sensorData.println(String('!')+Data);
+      sensorData.write('!');
+      sensorData.write(Data);  // DO NOT use println, unless you want <CR>
+      sensorData.write('\n');
       sensorData.close(); // close the file
     }
   }else{
@@ -535,17 +535,17 @@ int sendData(char* postData, uint8_t age) {
 }
 
 
-void formatData(String *input) {
+void formatData(char *input) {
   // formats input char string to fixed length output with \t at end padded
   // with zero characters ('0')
 
-  int original_length = input->length();
+  int original_length = strlen(input);
   if (original_length < FILE_LINE_LENGTH) {
-    int numzeros = FILE_LINE_LENGTH - original_length - 1;
-    *input += '\t';
-    for (int i = 0; i < numzeros; i++) {
-      *input += '0';
+    input[original_length] = '\t';
+    for (int i = original_length+1; i < FILE_LINE_LENGTH; i++) {
+      input[i] = '0';
     }
+    input[FILE_LINE_LENGTH] = '\0'; // end with 0
   }
 }
 
@@ -567,7 +567,7 @@ int readOldData(char* output, String filename){
         if (nextChar == '!') {
           sensorData.seek(sensorData.position()+1);
           sensorData.read(buffer, FILE_LINE_LENGTH);
-          prepare_payload(buffer, output);
+          prepare_payload(buffer, output); // can simply read to output
           break;
         } else if (nextChar == '?') {
           sensorData.seek(sensorData.position()+FILE_LINE_LENGTH+2);

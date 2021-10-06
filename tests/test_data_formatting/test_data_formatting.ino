@@ -15,10 +15,12 @@ char set5[512] = "{\"sht_0\":[23.73,73.21],\"bme_0\":[23.25,69.95215],\"htu_0\":
 char set6[512] = "{\"sht_0\":[23.76,73.17],\"bme_0\":[23.25,69.70703],\"htu_0\":[23.83912,74.74188],\"hdc_0\":[23.85895,73.97461],\"sds_0\":[56.1,175.1],\"pmsa_0\":[69,97,105],\"sht_1\":[23.91,73.02],\"bme_1\":[23.47,69.97949],\"htu_1\":[23.64607,72.23181],\"hdc_1\":[23.16406,75.21362],\"sds_1\":[52.3,154.8],\"pmsa_1\":[96,129,139],\"sht_2\":[23.84,73.9],\"bme_2\":[24.5,67.02051],\"htu_2\":[24.23595,66.57843],\"sds_2\":[54.6,86.6],\"soil\":[26.1386,20.21505],\"timestamp\":\"23.09.2021-08:44:51\"}";
 
 formatData(set1);
-formatData(set2);
-formatData(set3);
+delay(5000);
+// formatData(set2);
+// formatData(set3);
 formatData(set4);
-formatData(set5);
+delay(5000);
+// formatData(set5);
 formatData(set6);
 
 }
@@ -34,10 +36,10 @@ void formatData(char *input) {
   Serial.print("length is ");
   Serial.println(original_length);
   if (original_length < FILE_LINE_LENGTH) {
-    int numzeros = FILE_LINE_LENGTH - original_length - 1;
+    // uint32_t numzeros = FILE_LINE_LENGTH - original_length - 1;
     Serial.println("obtained");
     Serial.println(input);
-    input[original_length] += '\t';
+    input[original_length] = '\t';
     for (int i = original_length+1; i < FILE_LINE_LENGTH; i++) {
       input[i] = '0';
     }
