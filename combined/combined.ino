@@ -34,7 +34,7 @@ const int CSpin = 53;
 
 // timing
 const unsigned long DATA_SEND_TIME = 180000;
-const unsigned long PERIOD = DATA_SEND_TIME;
+const unsigned long PERIOD = 300000;
 
 // data formatting and storage
 const unsigned int FILE_LINE_LENGTH = 520;
@@ -191,7 +191,7 @@ void readData(int i,StaticJsonDocument<1024>& doc){
   }
 
   data = doc.createNestedArray(String("htu_")+String(i+1));
-    htu[i].readHumidity();
+    htu[i].readHumidity(); // just to make it work
     data.add(htu[i].readTemperature());
     delay(100);
     data.add(htu[i].readHumidity());
@@ -369,13 +369,15 @@ void loop() {
   if (sendData(payload, NEW_DATA)) {
     unsigned long time_left = PERIOD - (millis() - startTime);
     if (OLD_DATA_AVAILABLE) {
-      while (time_left > DATA_SEND_TIME) {
+      if (time_left > DATA_SEND_TIME) {
+        memset(payload, 0, 1024);
         if (readOldData(payload, dataFile)) {
           sendData(payload, OLD_DATA);
         } else {
-          break;
+          // in case there's no data or an error in reading, 
+          // do nothing.
         }
-        time_left = PERIOD - (millis() - startTime);
+        // time_left = PERIOD - (millis() - startTime);
       }
     }
   }
@@ -503,7 +505,7 @@ int sendData(char* postData, uint8_t age) {
   int status = http.responseStatusCode();
   SerialMon.print(F("Response status code: "));
   SerialMon.println(status);
-  if (status != 200) {
+  if ((status != 200) && (status != -3)) {
     return 0;
   }
   watchdogEnable(); 
@@ -603,6 +605,7 @@ void prepare_payload(char* unfiltered_data, char* output) {
   for (i = 0; ((i < FILE_LINE_LENGTH) && (unfiltered_data[i] != '\t')); i++) {
     output[i] = unfiltered_data[i];
   }
+  output[i] = 0;
 }
 
 
