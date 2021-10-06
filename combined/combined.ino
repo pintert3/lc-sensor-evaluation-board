@@ -397,7 +397,7 @@ void saveData(char Data[FILE_LINE_LENGTH+1] ,String filename){
     if (sensorData){
       sensorData.write('!');
       sensorData.write(Data);  // DO NOT use println, unless you want <CR>
-      sensorData.write('\n');
+      sensorData.write('\n');  // Check if Data has an end \0
       sensorData.close(); // close the file
     }
   }else{
