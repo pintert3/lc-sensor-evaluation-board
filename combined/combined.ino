@@ -616,7 +616,7 @@ int markData(uint8_t age, String filename) {
       if (age == NEW_DATA) {
         // seek back to start of last line and add '?'
         sensorData.seek(sensorData.size());
-        sensorData.seek(sensorData.position()+(FILE_LINE_LENGTH*-1) - 2); 
+        sensorData.seek(sensorData.position()+((int)FILE_LINE_LENGTH*-1) - 2); 
         sensorData.write('?');
         output_code = 0;
       } else { // Marking OLD_DATA
