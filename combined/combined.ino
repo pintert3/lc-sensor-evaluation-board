@@ -461,7 +461,7 @@ void setupgsm(){
     SerialMon.println("GPRS connected"); 
   }
   
-  delay(10000);
+  delay(5000);
 }
 
 
@@ -508,7 +508,12 @@ int sendData(char* postData, uint8_t age) {
   if ((status != 200) && (status != -3)) {
     return 0;
   }
+
   watchdogEnable(); 
+  if (status == -3) {
+    markData(age, dataFile);
+    while(1) {}
+  }
   SerialMon.println(F("Response Headers:"));
   while (http.headerAvailable()) {
     String headerName  = http.readHeaderName();
