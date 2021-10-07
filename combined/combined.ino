@@ -35,6 +35,7 @@ const int CSpin = 53;
 // timing
 const unsigned long DATA_SEND_TIME = 180000;
 const unsigned long PERIOD = 300000;
+volatile unsigned long startTime = 0;
 
 // data formatting and storage
 const unsigned int FILE_LINE_LENGTH = 520;
@@ -314,7 +315,7 @@ void setup() {
 }
 
 void loop() {
-  unsigned long startTime = millis();
+  startTime = millis();
   SerialMon.println(millis());
   
   char payload[1024] = {0};
@@ -367,9 +368,8 @@ void loop() {
 
   // how to change OLD_DATA_AVAILABLE to true?
   if (sendData(payload, NEW_DATA)) {
-    unsigned long time_left = PERIOD - (millis() - startTime);
     if (OLD_DATA_AVAILABLE) {
-      if (time_left > DATA_SEND_TIME) {
+      if (time_left(startTime) > DATA_SEND_TIME) {
         memset(payload, 0, 1024);
         if (readOldData(payload, dataFile)) {
           sendData(payload, OLD_DATA);
@@ -467,6 +467,7 @@ void setupgsm(){
 
 void watchdogEnable()
 {
+  countmax = time_left(startTime)/8000;
   counter=0;
   cli();                             
   MCUSR = 0;                                                                                             
@@ -651,4 +652,8 @@ int markData(uint8_t age, String filename) {
     output_code = 4;
   }
   return output_code;
+}
+
+unsigned long time_left(unsigned long start) {
+  return PERIOD - (millis() - start);
 }
