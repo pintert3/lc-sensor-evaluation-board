@@ -393,8 +393,7 @@ void loop() {
   modem.gprsDisconnect();
   SerialMon.println(F("GPRS disconnected"));
   
-  
-  delay (30000);
+  while (timeLeft() > 0);
 }
 
 void saveData(char Data[FILE_LINE_LENGTH+1] ,String filename){
@@ -661,9 +660,9 @@ int markData(uint8_t age, String filename) {
 }
 
 unsigned long timeLeft() {
-  return (timeElapsed < PERIOD) ? PERIOD - timeElapsed() : 0;
+  return (timeElapsed() < PERIOD) ? PERIOD - timeElapsed() : 0;
 }
 
 unsigned long timeElapsed() {
-  return (millis() - start);
+  return (millis() - startTime);
 }
