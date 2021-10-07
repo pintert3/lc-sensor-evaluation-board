@@ -36,6 +36,7 @@ const int CSpin = 53;
 const unsigned long DATA_SEND_TIME = 180000;
 const unsigned long PERIOD = 300000;
 volatile unsigned long startTime = 0;
+volatile uint8_t fresh_reset = 1;
 
 // data formatting and storage
 const unsigned int FILE_LINE_LENGTH = 520;
@@ -252,6 +253,7 @@ void readData(int i,StaticJsonDocument<1024>& doc){
 }
 
 void setup() {
+  startTime = millis();
   SerialMon.begin(115200);
    int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
   if (rtn != 0) {
@@ -315,7 +317,11 @@ void setup() {
 }
 
 void loop() {
-  startTime = millis();
+  if (fresh_reset) {
+    fresh_reset = 0;
+  } else {
+    startTime = millis();
+  }
   SerialMon.println(millis());
   
   char payload[1024] = {0};
@@ -369,7 +375,7 @@ void loop() {
   // how to change OLD_DATA_AVAILABLE to true?
   if (sendData(payload, NEW_DATA)) {
     if (OLD_DATA_AVAILABLE) {
-      if (time_left(startTime) > DATA_SEND_TIME) {
+      if (timeLeft() > DATA_SEND_TIME) {
         memset(payload, 0, 1024);
         if (readOldData(payload, dataFile)) {
           sendData(payload, OLD_DATA);
@@ -377,7 +383,7 @@ void loop() {
           // in case there's no data or an error in reading, 
           // do nothing.
         }
-        // time_left = PERIOD - (millis() - startTime);
+        // timeLeft = PERIOD - (millis() - startTime);
       }
     }
   }
@@ -467,7 +473,7 @@ void setupgsm(){
 
 void watchdogEnable()
 {
-  countmax = time_left(startTime)/8000;
+  countmax = timeLeft()/8000;
   counter=0;
   cli();                             
   MCUSR = 0;                                                                                             
@@ -654,6 +660,10 @@ int markData(uint8_t age, String filename) {
   return output_code;
 }
 
-unsigned long time_left(unsigned long start) {
-  return PERIOD - (millis() - start);
+unsigned long timeLeft() {
+  return (timeElapsed < PERIOD) ? PERIOD - timeElapsed() : 0;
+}
+
+unsigned long timeElapsed() {
+  return (millis() - start);
 }
