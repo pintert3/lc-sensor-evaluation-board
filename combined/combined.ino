@@ -31,6 +31,7 @@ DS3231  rtc(SDA, SCL);
 
 //sdcard
 const int CSpin = 53;
+const int SD_CARD_LED = 47;
 
 // timing
 const unsigned long DATA_SEND_TIME = 180000;
@@ -367,6 +368,7 @@ void loop() {
   strcpy(dataToSave, payload); // should copy the first 512 bytes + 0
 
   formatData(dataToSave);
+  digitalWrite(SD_CARD_LED,HIGH);
   saveData(dataToSave, dataFile);
   SerialMon.println(millis());
   setupgsm();
@@ -388,6 +390,7 @@ void loop() {
     }
   }
 
+  digitalWrite(SD_CARD_LED,LOW);
   http.stop();
   SerialMon.println(F("Server disconnected"));
   modem.gprsDisconnect();
