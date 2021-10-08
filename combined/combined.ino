@@ -31,10 +31,13 @@ DS3231  rtc(SDA, SCL);
 
 //sdcard
 const int CSpin = 53;
+const int SD_CARD_LED = 47;
 
 // timing
-const unsigned long DATA_SEND_TIME = 180000;
+const unsigned long DATA_SEND_TIME = 120000;
 const unsigned long PERIOD = 300000;
+volatile unsigned long startTime = 0;
+//volatile uint8_t fresh_reset = 1;
 
 // data formatting and storage
 const unsigned int FILE_LINE_LENGTH = 520;
@@ -251,7 +254,12 @@ void readData(int i,StaticJsonDocument<1024>& doc){
 }
 
 void setup() {
+  startTime = millis();
+
+  //SD_CARD_LED
+  pinMode(SD_CARD_LED, OUTPUT);
   SerialMon.begin(115200);
+  SerialMon.println("========= RESET =========");
    int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
   if (rtn != 0) {
     //Serial.println(F("I2C bus error. Could not clear"));
@@ -314,7 +322,8 @@ void setup() {
 }
 
 void loop() {
-  unsigned long startTime = millis();
+    startTime = millis();
+  
   SerialMon.println(millis());
   
   char payload[1024] = {0};
@@ -360,6 +369,7 @@ void loop() {
   strcpy(dataToSave, payload); // should copy the first 512 bytes + 0
 
   formatData(dataToSave);
+  digitalWrite(SD_CARD_LED,HIGH);
   saveData(dataToSave, dataFile);
   SerialMon.println(millis());
   setupgsm();
@@ -367,9 +377,8 @@ void loop() {
 
   // how to change OLD_DATA_AVAILABLE to true?
   if (sendData(payload, NEW_DATA)) {
-    unsigned long time_left = PERIOD - (millis() - startTime);
     if (OLD_DATA_AVAILABLE) {
-      if (time_left > DATA_SEND_TIME) {
+      if (timeLeft() > DATA_SEND_TIME) {
         memset(payload, 0, 1024);
         if (readOldData(payload, dataFile)) {
           sendData(payload, OLD_DATA);
@@ -377,18 +386,18 @@ void loop() {
           // in case there's no data or an error in reading, 
           // do nothing.
         }
-        // time_left = PERIOD - (millis() - startTime);
+        // timeLeft = PERIOD - (millis() - startTime);
       }
     }
   }
 
+  digitalWrite(SD_CARD_LED,LOW);
   http.stop();
   SerialMon.println(F("Server disconnected"));
   modem.gprsDisconnect();
   SerialMon.println(F("GPRS disconnected"));
   
-  
-  delay (30000);
+  while (timeLeft() > 0);
 }
 
 void saveData(char Data[FILE_LINE_LENGTH+1] ,String filename){
@@ -467,6 +476,7 @@ void setupgsm(){
 
 void watchdogEnable()
 {
+  countmax = (timeLeft()/8000)-3;
   counter=0;
   cli();                             
   MCUSR = 0;                                                                                             
@@ -512,6 +522,11 @@ int sendData(char* postData, uint8_t age) {
   watchdogEnable(); 
   if (status == -3) {
     markData(age, dataFile);
+    digitalWrite(SD_CARD_LED,LOW);
+    http.stop();
+    SerialMon.println(F("Server disconnected"));
+    modem.gprsDisconnect();
+    SerialMon.println(F("GPRS disconnected"));
     while(1) {}
   }
   SerialMon.println(F("Response Headers:"));
@@ -651,4 +666,12 @@ int markData(uint8_t age, String filename) {
     output_code = 4;
   }
   return output_code;
+}
+
+unsigned long timeLeft() {
+  return (timeElapsed() < PERIOD) ? PERIOD - timeElapsed() : 0;
+}
+
+unsigned long timeElapsed() {
+  return (millis() - startTime);
 }
