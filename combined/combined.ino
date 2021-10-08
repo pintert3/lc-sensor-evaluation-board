@@ -254,8 +254,12 @@ void readData(int i,StaticJsonDocument<1024>& doc){
 }
 
 void setup() {
-  //startTime = millis();
+  startTime = millis();
+
+  //SD_CARD_LED
+  pinMode(SD_CARD_LED, OUTPUT);
   SerialMon.begin(115200);
+  SerialMon.println("========= RESET =========");
    int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
   if (rtn != 0) {
     //Serial.println(F("I2C bus error. Could not clear"));
