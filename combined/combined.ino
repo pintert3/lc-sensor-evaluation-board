@@ -335,9 +335,11 @@ void loop() {
     soft[i].listen();
     sds[i].wakeup();
     delay(800);
-    pmsa_array[i].wake();
+    if (i<2) {
+      pmsa_array[i].wake();
     }
-    //Serial.println("waking up");
+  }
+  //Serial.println("waking up");
   delay(40000);
 
   //--reading the SMT---
