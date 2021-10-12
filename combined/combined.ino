@@ -167,7 +167,7 @@ void readData(int i,StaticJsonDocument<1024>& doc){
   JsonArray data;
   wdt_enable( WDTO_8S);
   // the channel corresponds to the i so we shall use the same variable
-  Tcselect(i+2);
+  Tcselect(i+1);
   delay(100);
   //check if sensor is connected if not it will cause the system to reset-- i don't know why yet
   // if the sensor is not connected, then its reading will be zero, that is under else block to be added.
@@ -202,7 +202,7 @@ void readData(int i,StaticJsonDocument<1024>& doc){
 
   if (i<2){// we only have 2 of these
     data = doc.createNestedArray(String("hdc_")+String(i+1));
-    Tcselect(i);
+    Tcselect(i+4);
     //We have to make sure they are connected otherwise since we have no status check for these yet.
     // Their ".begin()" doesn't return anything
     data.add(hdc1080[i].getTemperature());
@@ -287,7 +287,7 @@ void setup() {
   wdt_enable( WDTO_8S);
   for(int i=0;i<3;i++){
     //small sensors
-    Tcselect(i+2);// select channel 
+    Tcselect(i+1);// select channel 
     delay(100);
     statusHTU[i] = htu[i].begin();
     delay(100);
@@ -298,7 +298,7 @@ void setup() {
     delay(100);
     //Serial.println("before begin");
     if(i<2){
-      Tcselect(i);
+      Tcselect(i+4);
       delay(100);
       hdc1080[i].begin();// doesn't return boolean so just intialize 
       delay(100);
