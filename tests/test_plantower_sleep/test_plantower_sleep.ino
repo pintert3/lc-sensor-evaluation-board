@@ -1,8 +1,9 @@
-#include <PMSerial.h>
+#include <PMserial.h>
 
 SerialPM pmsa = SerialPM(PMSA003, Serial1);
 void setup() {
   pmsa.init();
+  Serial.begin(9600);
 }
 
 void loop() {

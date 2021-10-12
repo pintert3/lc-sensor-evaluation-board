@@ -250,6 +250,7 @@ void readData(int i,StaticJsonDocument<1024>& doc){
       //put here led indicator 
       
     }
+    pmsa_array[i].sleep();
   }
 }
 
@@ -333,7 +334,8 @@ void loop() {
   for(int i=0;i<3;i++){
     soft[i].listen();
     sds[i].wakeup();
-    //need to include the set pin for the pmsa003 sleep and wakeup
+    delay(800);
+    pmsa_array[i].wake();
     }
     //Serial.println("waking up");
   delay(40000);
