@@ -165,6 +165,7 @@ int I2C_ClearBus() {
 ////// Reading fucntion for the small sensors /////
 void readData(int i,StaticJsonDocument<1024>& doc){
   JsonArray data;
+  Serial.println("-- Enable WDT in readData");
   wdt_enable( WDTO_8S);
   // the channel corresponds to the i so we shall use the same variable
   Tcselect(i+1);
@@ -181,6 +182,7 @@ void readData(int i,StaticJsonDocument<1024>& doc){
     data.add("NULL");
     data.add("NULL");
   }
+  Serial.println("* Read from SHT *");
   
   data = doc.createNestedArray(String("bme_")+String(i+1));
   if (statusBME[i]){
@@ -192,13 +194,15 @@ void readData(int i,StaticJsonDocument<1024>& doc){
     data.add("NULL");
     data.add("NULL");
   }
+  Serial.println("* Read from BME *");
 
   data = doc.createNestedArray(String("htu_")+String(i+1));
-    htu[i].readHumidity(); // just to make it work
-    data.add(htu[i].readTemperature());
-    delay(100);
-    data.add(htu[i].readHumidity());
-    delay(100);
+  htu[i].readHumidity(); // just to make it work
+  data.add(htu[i].readTemperature());
+  delay(100);
+  data.add(htu[i].readHumidity());
+  delay(100);
+  Serial.println("* Read from HTU *");
 
   if (i<2){// we only have 2 of these
     data = doc.createNestedArray(String("hdc_")+String(i+1));
@@ -209,8 +213,10 @@ void readData(int i,StaticJsonDocument<1024>& doc){
     delay(100);
     data.add(hdc1080[i].getHumidity());
     delay(100);
+    Serial.println("* Read from HDC *");
   }
   wdt_disable();
+  Serial.println("-- Disabled WDT in readData");
 
   soft[i].listen();
   data = doc.createNestedArray(String("sds_")+String(i+1));
@@ -280,32 +286,57 @@ void setup() {
  //initialize all the sensors
   //Wire.begin();
   delay(100);
+  Serial.println("-- Enable WDT");
   wdt_enable( WDTO_8S);
-  rtc.begin();
+  rtc.begin();      //  <-------------- DEBUG
   wdt_disable();
+  Serial.println("-- Disabled WDT");
   delay(100);
   //Serial.println("after begin");
+  Serial.println("-- Enable WDT");
   wdt_enable( WDTO_8S);
   for(int i=0;i<3;i++){
     //small sensors
     Tcselect(i+1);// select channel 
+    Serial.print("---- Initializing channel ");
+    Serial.println(i+1);
+    Serial.println("Initializing HTU");
     delay(100);
     statusHTU[i] = htu[i].begin();
+    if (statusHTU[i]) {
+      Serial.println("<- Initialized HTU");
+    } else {
+      Serial.println("<-xx HTU NOT FOUND");
+    }
+    Serial.println("Initializing SHT");
     delay(100);
     statusSHT[i] = 1;
     sht31[i].begin(); 
+    if (statusSHT[i]) {
+      Serial.println("<- Initialized SHT");
+    } else {
+      Serial.println("<-xx SHT NOT FOUND");
+    }
+    Serial.println("Initializing BME");
     delay(100);
     statusBME[i] =bme[i].begin(0x76); 
+    if (statusBME[i]) {
+      Serial.println("<- Initialized BME");
+    } else {
+      Serial.println("<-xx BME NOT FOUND");
+    }
     delay(100);
     //Serial.println("before begin");
     if(i<2){
       Tcselect(i+4);
       delay(100);
       hdc1080[i].begin();// doesn't return boolean so just intialize 
+      Serial.println("<- Initialized HDC1080");
       delay(100);
     }
   }
   wdt_disable();
+  Serial.println("-- Disabled WDT");
   for(int i=0;i<3;i++){
     //big sensors
     if (i < 2) {
@@ -355,6 +386,7 @@ void loop() {
  
   ///major loop here tor read all the other sensors that are in 3s
   wdt_enable( WDTO_8S);
+  //        <-------------- DEBUG
   timeStamp=(String(rtc.getDateStr())+"-"+String(rtc.getTimeStr()));
   wdt_disable();
   
@@ -365,9 +397,13 @@ void loop() {
   JsonArray data = doc.createNestedArray("soil");
   data.add(SMTtemp);
   data.add(SMTmois);
+  //         <-------------- DEBUG
   doc["timestamp"] = timeStamp;
 
   serializeJson(doc, payload);
+
+  Serial.println("==== > SENT DATA < ====");
+  Serial.println(payload);
   
   char dataToSave[FILE_LINE_LENGTH+1];
   strcpy(dataToSave, payload); // should copy the first 512 bytes + 0
