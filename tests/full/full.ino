@@ -401,6 +401,9 @@ void loop() {
   doc["timestamp"] = timeStamp;
 
   serializeJson(doc, payload);
+
+  Serial.println("==== > SENT DATA < ====");
+  Serial.println(payload);
   
   char dataToSave[FILE_LINE_LENGTH+1];
   strcpy(dataToSave, payload); // should copy the first 512 bytes + 0
