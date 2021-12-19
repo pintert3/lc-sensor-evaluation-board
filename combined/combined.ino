@@ -50,7 +50,8 @@ uint8_t OLD_DATA_AVAILABLE = 1;
 
 // File dataFile;
 // File logsfile;
-
+// control variables
+int reset =0;
 //tiny sensor objects
 Adafruit_BME280 bme[3];
 Adafruit_SHT31 sht31[3];
@@ -290,6 +291,7 @@ void setup() {
     //small sensors
     Tcselect(i+1);// select channel 
     delay(100);
+    htu[i].begin();
     statusHTU[i] = htu[i].begin();
     delay(100);
     statusSHT[i] = 1;
@@ -323,6 +325,10 @@ void setup() {
 
 void loop() {
     startTime = millis();
+    reset++;
+    if(reset >= 50){
+      watchdogEnable();
+    }
   
   SerialMon.println(millis());
   
