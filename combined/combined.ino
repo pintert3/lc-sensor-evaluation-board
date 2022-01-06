@@ -81,7 +81,7 @@ const char apn[]      = "internet";
 const char gprsUser[] = "";
 const char gprsPass[] = "";
 
-
+int softrst=0;
 //communication variables
 const char server[]   = "35.226.209.188";
 char resource[]="/api_v1/general/";//endpoint will be hard written here
@@ -399,8 +399,13 @@ void loop() {
   SerialMon.println(F("Server disconnected"));
   modem.gprsDisconnect();
   SerialMon.println(F("GPRS disconnected"));
-  
+  softrst++;
+  if (softrst < 36){
   while (timeLeft() > 0);
+  }else{
+    watchdogEnable();
+    while(1);
+    }
 }
 
 void saveData(char Data[FILE_LINE_LENGTH+1] ,String filename){
