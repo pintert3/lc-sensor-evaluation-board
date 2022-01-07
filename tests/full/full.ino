@@ -54,7 +54,7 @@ uint8_t OLD_DATA_AVAILABLE = 1;
 //tiny sensor objects
 Adafruit_BME280 bme[3];
 Adafruit_SHT31 sht31[3];
-HDC1080 hdc1080[2];
+HDC1080 hdc1080[3];
 Adafruit_HTU21DF htu[3];
 
 //particulate matter objects
@@ -204,17 +204,17 @@ void readData(int i,StaticJsonDocument<1024>& doc){
   delay(100);
   Serial.println("* Read from HTU *");
 
-  if (i<2){// we only have 2 of these
-    data = doc.createNestedArray(String("hdc_")+String(i+1));
-    Tcselect(i+4);
-    //We have to make sure they are connected otherwise since we have no status check for these yet.
-    // Their ".begin()" doesn't return anything
-    data.add(hdc1080[i].getTemperature());
-    delay(100);
-    data.add(hdc1080[i].getHumidity());
-    delay(100);
-    Serial.println("* Read from HDC *");
-  }
+  // if (i<2){// we only have 2 of these
+  data = doc.createNestedArray(String("hdc_")+String(i+1));
+  Tcselect(i+4);
+  //We have to make sure they are connected otherwise since we have no status check for these yet.
+  // Their ".begin()" doesn't return anything
+  data.add(hdc1080[i].getTemperature());
+  delay(100);
+  data.add(hdc1080[i].getHumidity());
+  delay(100);
+  Serial.println("* Read from HDC *");
+  // }
   wdt_disable();
   Serial.println("-- Disabled WDT in readData");
 
@@ -327,13 +327,12 @@ void setup() {
     }
     delay(100);
     //Serial.println("before begin");
-    if(i<2){
-      Tcselect(i+4);
-      delay(100);
-      hdc1080[i].begin();// doesn't return boolean so just intialize 
-      Serial.println("<- Initialized HDC1080");
-      delay(100);
-    }
+
+    Tcselect(i+4);
+    delay(100);
+    hdc1080[i].begin();// doesn't return boolean so just intialize 
+    Serial.println("<- Initialized HDC1080");
+    delay(100);
   }
   wdt_disable();
   Serial.println("-- Disabled WDT");
