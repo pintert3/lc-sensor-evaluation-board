@@ -83,10 +83,11 @@ const char gprsPass[] = "";
 
 int softrst=0;
 //communication variables
-const char server[]   = "35.226.209.188";
+// const char server[]   = "35.226.209.188";
+const char server[]   = "137.63.184.136";
 char resource[]="/api_v1/general/";//endpoint will be hard written here
 String contentType ="application/json";
-const int  port       = 80;//port http
+const int  port       = 8000;//port http
 
 TinyGsm        modem(SerialAT);
 
