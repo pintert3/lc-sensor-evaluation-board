@@ -29,8 +29,7 @@ SoftwareSerial SerialAT(68, 69);  // RX, TX
 
 DS3231  rtc(SDA, SCL);
 
-//sdcard
-const int CSpin = 8;
+// LEDs
 const int SD_CARD_LED = 10;
 const int SENSOR_LED = 9;
 
@@ -44,10 +43,17 @@ volatile unsigned long startTime = 0;
 const unsigned int FILE_LINE_LENGTH = 520;
 const String dataFile = String("data.txt");
 
+//--- SD CARD VARIABLES
+
+// spi chip select pin
+const int CSpin = 8;
+
 // data age
 const uint8_t NEW_DATA = 1;
 const uint8_t OLD_DATA = 0;
 uint8_t OLD_DATA_AVAILABLE = 1;
+
+//----
 
 // File dataFile;
 // File logsfile;
