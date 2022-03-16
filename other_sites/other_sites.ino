@@ -24,8 +24,8 @@
 #define TINY_GSM_DEBUG SerialMon
 #define GSM_AUTOBAUD_MIN 9600
 #define GSM_AUTOBAUD_MAX 9600
-#define pinReset 6
-SoftwareSerial SerialAT(68, 69);  // RX, TX
+#define pinReset 4
+SoftwareSerial SerialAT(2, 3);  // RX, TX
 
 DS3231  rtc(SDA, SCL);
 
