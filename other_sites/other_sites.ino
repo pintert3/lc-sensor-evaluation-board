@@ -165,7 +165,7 @@ int I2C_ClearBus() {
   return 0; // all ok
 }
 
-////// Reading fucntion for the small sensors /////
+////// Reading function for the small sensors /////
 
 // TODO: Need to make this work for one sensor per type not 3
 
@@ -287,14 +287,11 @@ void setup() {
     delay(100);
   }
   wdt_disable();
-  for(int i=0;i<3;i++){
-    //big sensors
-    if (i < 2) {
-      pmsa_array[i].init();
-    }
-    sds[i].begin(); // this line will begin soft-serial with given baud rate (9600 by default)
-    sds[i].setQueryReportingMode(); // set reporting mode  
-    }
+
+  //nova
+  sds.begin(); // this line will begin soft-serial with given baud rate (9600 by default)
+  sds.setQueryReportingMode(); // set reporting mode  
+
     //sdcard
     pinMode(CSpin, OUTPUT);
     if (!SD.begin(CSpin)) {
