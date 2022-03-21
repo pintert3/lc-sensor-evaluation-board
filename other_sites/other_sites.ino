@@ -14,6 +14,10 @@
 #include <ArduinoJson.h>
 #include <ArduinoHttpClient.h>
 
+//// TCA CHANNELS
+#define TCA_1 1
+#define TCA_2 4
+
 //////gsm
 #define TINY_GSM_MODEM_SIM800
 #include <TinyGsmClient.h>
@@ -175,56 +179,55 @@ int I2C_ClearBus() {
 
 // TODO: Need to make this work for one sensor per type not 3
 
-void readData(int i,StaticJsonDocument<1024>& doc){
+void readData(StaticJsonDocument<1024>& doc){
   JsonArray data;
-  wdt_enable( WDTO_8S);
+  wdt_enable( WDT_PERIOD_8KCLK_gc);
   // the channel corresponds to the i so we shall use the same variable
-  Tcselect(i+1);
+  Tcselect(TCA_1);
   delay(100);
   //check if sensor is connected if not it will cause the system to reset-- i don't know why yet
   // if the sensor is not connected, then its reading will be zero, that is under else block to be added.
-  data = doc.createNestedArray(String("sht_")+String(i+1));
-  if (statusSHT[i]){
-    data.add(sht31[i].readTemperature());
+  data = doc.createNestedArray(String("sht"));
+  if (statusSHT){
+    data.add(sht31.readTemperature());
     delay(100);
-    data.add(sht31[i].readHumidity());
+    data.add(sht31.readHumidity());
     delay(100);
   } else {
     data.add("NULL");
     data.add("NULL");
   }
   
-  data = doc.createNestedArray(String("bme_")+String(i+1));
-  if (statusBME[i]){
-    data.add(bme[i].readTemperature());
+  data = doc.createNestedArray(String("bme"));
+  if (statusBME){
+    data.add(bme.readTemperature());
     delay(100);
-    data.add(bme[i].readHumidity());
+    data.add(bme.readHumidity());
     delay(100);
   } else {
     data.add("NULL");
     data.add("NULL");
   }
 
-  data = doc.createNestedArray(String("htu_")+String(i+1));
-  htu[i].readHumidity(); // just to make it work
-  data.add(htu[i].readTemperature());
+  data = doc.createNestedArray(String("htu"));
+  htu.readHumidity(); // just to make it work
+  data.add(htu.readTemperature());
   delay(100);
-  data.add(htu[i].readHumidity());
+  data.add(htu.readHumidity());
   delay(100);
 
-  // if (i<2){// we only have 2 of these
-  data = doc.createNestedArray(String("hdc_")+String(i+1));
-  Tcselect(i+4);
+  data = doc.createNestedArray(String("hdc"));
+  Tcselect(TCA_2);
   //We have to make sure they are connected otherwise since we have no status check for these yet.
   // Their ".begin()" doesn't return anything
-  data.add(hdc1080[i].getTemperature());
+  data.add(hdc1080.getTemperature());
   delay(100);
-  data.add(hdc1080[i].getHumidity());
+  data.add(hdc1080.getHumidity());
   delay(100);
   // }
   wdt_disable();
 
-  sds.listen();
+  novaSoft.listen();
   data = doc.createNestedArray(String("sds"));
   PmResult pm = sds.queryPm();
   if (pm.isOk()) {
@@ -268,30 +271,30 @@ void setup() {
  //initialize all the sensors
   //Wire.begin();
   delay(100);
-  wdt_enable( WDTO_8S);
+  wdt_enable( WDT_PERIOD_8KCLK_gc);
   rtc.begin();
   wdt_disable();
   delay(100);
   //Serial.println("after begin");
-  wdt_enable( WDTO_8S);
-  for(int i=0;i<3;i++){
-    //small sensors
-    Tcselect(i+1);// select channel 
-    delay(100);
-    statusHTU[i] = htu[i].begin();
-    delay(100);
-    statusSHT[i] = 1;
-    sht31[i].begin(); 
-    delay(100);
-    statusBME[i] =bme[i].begin(0x76); 
-    delay(100);
-    //Serial.println("before begin");
+  wdt_enable( WDT_PERIOD_8KCLK_gc);
 
-    Tcselect(i+4);
-    delay(100);
-    hdc1080[i].begin();// doesn't return boolean so just intialize 
-    delay(100);
-  }
+  //small sensors
+  Tcselect(TCA_1);// select channel 
+  delay(100);
+  statusHTU = htu.begin();
+  delay(100);
+  statusSHT = 1;
+  sht31.begin(); 
+  delay(100);
+  statusBME =bme.begin(0x76); 
+  delay(100);
+  //Serial.println("before begin");
+
+  Tcselect(TCA_2);
+  delay(100);
+  hdc1080.begin();// doesn't return boolean so just intialize 
+  delay(100);
+
   wdt_disable();
 
   //nova
@@ -315,14 +318,10 @@ void loop() {
   StaticJsonDocument<1024> doc;
 //overrite the last strings 
   // wake up the big sensors
-  for(int i=0;i<3;i++){
-    soft[i].listen();
-    sds[i].wakeup();
-    delay(800);
-    if (i<2) {
-      pmsa_array[i].wake();
-    }
-  }
+  novaSoft.listen();
+  sds.wakeup();
+  delay(800);
+
   //Serial.println("waking up");
   delay(40000);
 
@@ -338,13 +337,12 @@ void loop() {
   SMTmois = SMTmois*50/3;
  
   ///major loop here tor read all the other sensors that are in 3s
-  wdt_enable( WDTO_8S);
+  wdt_enable( WDT_PERIOD_8KCLK_gc);
   timeStamp=(String(rtc.getDateStr())+"-"+String(rtc.getTimeStr()));
   wdt_disable();
   
-  for(int i=0;i<3;i++){
-    readData(i,doc);// first read from the small sensors
-  }
+  readData(doc);// first read from the main sensors
+
   SerialMon.println(millis());
   JsonArray data = doc.createNestedArray("soil");
   data.add(SMTtemp);
