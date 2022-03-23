@@ -483,6 +483,7 @@ void setupgsm(){
 }
 
 
+// Restart mcu using watchdog timer
 void watchdogEnable()
 {
   countmax = (timeLeft()/8000)-3;
@@ -493,6 +494,7 @@ void watchdogEnable()
   WDTCSR =  0b01000000 | 0b100001;                                        
   sei();                              
 }
+
 ISR(WDT_vect) 
 {
   counter+=1;
