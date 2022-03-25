@@ -181,7 +181,7 @@ int I2C_ClearBus() {
 
 void readData(StaticJsonDocument<1024>& doc){
   JsonArray data;
-  wdt_enable( WDT_PERIOD_8KCLK_gc);
+  // wdt_enable( WDT_PERIOD_8KCLK_gc);
   // the channel corresponds to the i so we shall use the same variable
   Tcselect(TCA_1);
   delay(100);
@@ -225,7 +225,7 @@ void readData(StaticJsonDocument<1024>& doc){
   data.add(hdc1080.getHumidity());
   delay(100);
   // }
-  wdt_disable();
+  // wdt_disable();
 
   novaSoft.listen();
   data = doc.createNestedArray(String("sds"));
@@ -246,6 +246,7 @@ void readData(StaticJsonDocument<1024>& doc){
 }
 
 void setup() {
+  rtcwdt();
   startTime = millis();
 
   //SD_CARD_LED
@@ -271,12 +272,12 @@ void setup() {
  //initialize all the sensors
   //Wire.begin();
   delay(100);
-  wdt_enable( WDT_PERIOD_8KCLK_gc);
+  // wdt_enable( WDT_PERIOD_8KCLK_gc);
   rtc.begin();
-  wdt_disable();
+  // wdt_disable();
   delay(100);
   //Serial.println("after begin");
-  wdt_enable( WDT_PERIOD_8KCLK_gc);
+  // wdt_enable( WDT_PERIOD_8KCLK_gc);
 
   //small sensors
   Tcselect(TCA_1);// select channel 
@@ -295,7 +296,7 @@ void setup() {
   hdc1080.begin();// doesn't return boolean so just intialize 
   delay(100);
 
-  wdt_disable();
+  // wdt_disable();
 
   //nova
   sds.begin(); // this line will begin soft-serial with given baud rate (9600 by default)
@@ -316,7 +317,7 @@ void loop() {
   
   char payload[1024] = {0};
   StaticJsonDocument<1024> doc;
-//overrite the last strings 
+  //overrite the last strings 
   // wake up the big sensors
   novaSoft.listen();
   sds.wakeup();
@@ -337,9 +338,9 @@ void loop() {
   SMTmois = SMTmois*50/3;
  
   ///major loop here tor read all the other sensors that are in 3s
-  wdt_enable( WDT_PERIOD_8KCLK_gc);
+  // wdt_enable( WDT_PERIOD_8KCLK_gc);
   timeStamp=(String(rtc.getDateStr())+"-"+String(rtc.getTimeStr()));
-  wdt_disable();
+  // wdt_disable();
   
   readData(doc);// first read from the main sensors
 
@@ -386,7 +387,7 @@ void loop() {
   if (softrst < 36){
   while (timeLeft() > 0);
   }else{
-    watchdogEnable();
+    // watchdogEnable();
     while(1);
     }
 }
@@ -441,7 +442,7 @@ void setupgsm(){
   SerialMon.print("Waiting for network...");
   if (!modem.waitForNetwork()) {
     SerialMon.println(" fail");
-    watchdogEnable(); 
+    // watchdogEnable(); 
     while(true);  
   }
   SerialMon.println(" success");
@@ -452,7 +453,7 @@ void setupgsm(){
   SerialMon.print(apn);
   if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
     SerialMon.println(" fail");
-    watchdogEnable(); 
+    // watchdogEnable(); 
       while(true);
   }
   SerialMon.println(" success");
@@ -464,8 +465,9 @@ void setupgsm(){
   delay(5000);
 }
 
+// --- PLEASE COMMENT THE CODE NEXT TIME!! --- //
 
-void watchdogEnable()
+/*void watchdogEnable()
 {
   countmax = (timeLeft()/8000)-3;
   counter=0;
@@ -475,6 +477,7 @@ void watchdogEnable()
   WDTCSR =  0b01000000 | 0b100001;                                        
   sei();                              
 }
+
 ISR(WDT_vect) 
 {
   counter+=1;
@@ -489,10 +492,10 @@ ISR(WDT_vect)
     WDTCSR =  0b00001000 | 0b000000;    
     
   }
-}
+}*/
 
 int sendData(char* postData, uint8_t age) {
-  watchdogEnable(); // In case connection to server fails
+  // watchdogEnable(); // In case connection to server fails
   SerialMon.print(F("Performing HTTP POST request... "));
   //http.connectionKeepAlive();  // Currently, this is needed for HTTPS
   //int err = http.get(resource);
@@ -501,7 +504,7 @@ int sendData(char* postData, uint8_t age) {
     SerialMon.println(F("failed to connect"));
     while(true); // To be caught by WDT
   }
-  wdt_disable();
+  // wdt_disable();
   Serial.println("**** starting loop ****");
   int status = http.responseStatusCode();
   SerialMon.print(F("Response status code: "));
@@ -510,7 +513,7 @@ int sendData(char* postData, uint8_t age) {
     return 0;
   }
 
-  watchdogEnable(); 
+  // watchdogEnable(); 
   if (status == -3) {
     markData(age, dataFile);
     digitalWrite(SD_CARD_LED,LOW);
@@ -541,7 +544,7 @@ int sendData(char* postData, uint8_t age) {
 
   //SerialMon.print(F("Body length is: "));
   //SerialMon.println(body.length());
-  wdt_disable();
+  // wdt_disable();
   
   markData(age, dataFile);
   return 1;
@@ -665,4 +668,33 @@ unsigned long timeLeft() {
 
 unsigned long timeElapsed() {
   return (millis() - startTime);
+}
+
+void configureCLKRTC() {
+  // configure CLK_RTC
+  RTC.CLKSEL |= RTC_CLKSEL0_bm; // INT32K OSCULP32K internal clock
+}
+
+void rtcwdt() {
+  configureCLKRTC();
+  while(RTC.STATUS & RTC_CTRLABUSY_bm); // wait for status to not be busy
+  // set RTC.CMP ==> 300 mins to 1001 0110 0000 0000
+  RTC.CMPL &= 0x00;
+  RTC.CMPH &= 0x96 ;
+
+  // Enable interrupts, RTC.INTCTRL
+  RTC.INTCTRL |= RTC_CMP_bm;
+
+  // Configure prescaler and enable bit
+  while(RTC.STATUS & RTC_CTRLABUSY_bm); // wait for CTRL status to not be busy
+  RTC.CTRLA |= (0x08<<3); // set 256 PRESCALER
+  RTC.CTRLA |= RTC_RTCEN_bm; // set RTC enable
+}
+
+ISR(RTC_CNT_vect) {
+  RTC.INTFLAGS |= RTC_CMP_bm;
+  
+  // start watchdog
+  RSTCTRL.RSTFR |= RSTCTRL_WDRF_bm ;
+  wdt_enable(WDT_PERIOD_8KCLK_gc);
 }
