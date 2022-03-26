@@ -14,6 +14,11 @@
 #include <ArduinoJson.h>
 #include <ArduinoHttpClient.h>
 
+// DEBUG MODE if needed
+// #ifndef DEBUG_MODE
+// #define DEBUG_MODE
+// #endif
+
 //// TCA CHANNELS
 #define TCA_1 1
 #define TCA_2 4
@@ -105,6 +110,9 @@ TinyGsmClient client(modem);
 HttpClient          http(client, server, port);
 volatile int counter; //delay counter     
 volatile int countmax = 3; 
+
+// ADAFruit sensor templates
+// TODO: Use templates to refactor adafruit sensor code
 
 // function to select channels
 void Tcselect(uint8_t bus){
@@ -243,39 +251,59 @@ void readData(StaticJsonDocument<1024>& doc){
 
 }
 
+// void readFromTempSensor(String sensorName, unsigned status, sensor) {
+//   data = doc.createNestedArray(String("sht"));
+//   if (statusSHT){
+//     data.add(sht31.readTemperature());
+//     delay(100);
+//     data.add(sht31.readHumidity());
+//     delay(100);
+//   } else {
+//     data.add("NULL");
+//     data.add("NULL");
+//   }
+// }
+
 void setup() {
   rtcwdt();
   startTime = millis();
 
   //SD_CARD_LED
   pinMode(SD_CARD_LED, OUTPUT);
+  #ifdef DEBUG_MODE
   SerialMon.begin(115200);
   SerialMon.println("========= RESET =========");
-   int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
-  if (rtn != 0) {
-    //Serial.println(F("I2C bus error. Could not clear"));
-    if (rtn == 1) {
-      //Serial.println(F("SCL clock line held low"));
-    } else if (rtn == 2) {
-      //Serial.println(F("SCL clock line held low by slave clock stretch"));
-    } else if (rtn == 3) {
-      //Serial.println(F("SDA data line held low"));
-    }
-  } else { // bus clear
-    // re-enable Wire
-    // now can start Wire Arduino master
+  #endif
+  int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
+  // SUBJECT TO CODE REFACTORING
+  // if (rtn != 0) {
+  //   //Serial.println(F("I2C bus error. Could not clear"));
+  //   if (rtn == 1) {
+  //     //Serial.println(F("SCL clock line held low"));
+  //   } else if (rtn == 2) {
+  //     //Serial.println(F("SCL clock line held low by slave clock stretch"));
+  //   } else if (rtn == 3) {
+  //     //Serial.println(F("SDA data line held low"));
+  //   }
+  // } else { // bus clear
+  //   // re-enable Wire
+  //   // now can start Wire Arduino master
+  //   Wire.begin();
+  // }
+
+  if (rtn == 0) {
     Wire.begin();
   }
+
   delay(9000);
- //initialize all the sensors
-  //Wire.begin();
-  delay(100);
+  //initialize all the sensors
+  // delay(100);
   // wdt_enable( WDT_PERIOD_8KCLK_gc);
 
   // rtc.begin();
 
   // wdt_disable();
-  delay(100);
+  // delay(100);
   //Serial.println("after begin");
   // wdt_enable( WDT_PERIOD_8KCLK_gc);
 
@@ -287,7 +315,7 @@ void setup() {
   statusSHT = 1;
   sht31.begin(); 
   delay(100);
-  statusBME =bme.begin(0x76); 
+  statusBME = bme.begin(0x76); 
   delay(100);
   //Serial.println("before begin");
 
@@ -313,7 +341,9 @@ void setup() {
 void loop() {
   startTime = millis();
   
+  #ifdef DEBUG_MODE
   SerialMon.println(millis());
+  #endif
   
   char payload[1024] = {0};
   StaticJsonDocument<1024> doc;
@@ -345,7 +375,9 @@ void loop() {
   
   readData(doc);// first read from the main sensors
 
+  #ifdef DEBUG_MODE
   SerialMon.println(millis());
+  #endif
   JsonArray data = doc.createNestedArray("soil");
   data.add(SMTtemp);
   data.add(SMTmois);
@@ -359,7 +391,9 @@ void loop() {
   formatData(dataToSave);
   digitalWrite(SD_CARD_LED,HIGH);
   saveData(dataToSave, dataFile);
+  #ifdef DEBUG_MODE
   SerialMon.println(millis());
+  #endif
   setupgsm();
   connectnet();
 
@@ -370,10 +404,10 @@ void loop() {
         memset(payload, 0, 1024);
         if (readOldData(payload, dataFile)) {
           sendData(payload, OLD_DATA);
-        } else {
+        } /*else {
           // in case there's no data or an error in reading, 
           // do nothing.
-        }
+        }*/
         // timeLeft = PERIOD - (millis() - startTime);
       }
     }
@@ -381,9 +415,13 @@ void loop() {
 
   digitalWrite(SD_CARD_LED,LOW);
   http.stop();
+  #ifdef DEBUG_MODE
   SerialMon.println(F("Server disconnected"));
+  #endif
   modem.gprsDisconnect();
+  #ifdef DEBUG_MODE
   SerialMon.println(F("GPRS disconnected"));
+  #endif
   softrst++;
   if (softrst < 36){
   while (timeLeft() > 0);
@@ -423,44 +461,66 @@ void setupgsm(){
   digitalWrite(pinReset, HIGH);
   delay(3000);
 
+  #ifdef DEBUG_MODE
   SerialMon.println("Wait...");
+  #endif
   //modem.setBaud(9600);
   TinyGsmAutoBaud(SerialAT, GSM_AUTOBAUD_MIN, GSM_AUTOBAUD_MAX);
   // SerialAT.begin(9600);
   delay(6000);
   // Restart takes quite some time
   // To skip it, call init() instead of restart()
+  #ifdef DEBUG_MODE
   SerialMon.println("Initializing modem...");
+  #endif
   modem.restart();
    //modem.init();
   String modemInfo = modem.getModemInfo();
+  #ifdef DEBUG_MODE
   SerialMon.print("Modem Info: ");
   SerialMon.println(modemInfo);
+  #endif
 }
 
 
  void connectnet(){
+  #ifdef DEBUG_MODE
   SerialMon.print("Waiting for network...");
+  #endif
   if (!modem.waitForNetwork()) {
+    #ifdef DEBUG_MODE
     SerialMon.println(" fail");
+    #endif
     // watchdogEnable(); 
     while(true);  
   }
+  #ifdef DEBUG_MODE
   SerialMon.println(" success");
+  #endif
   if (modem.isNetworkConnected()) { 
+    #ifdef DEBUG_MODE
     SerialMon.println("Network connected");
+    #endif
   }
-    SerialMon.print(F("Connecting to "));
+  #ifdef DEBUG_MODE
+  SerialMon.print(F("Connecting to "));
   SerialMon.print(apn);
+  #endif
   if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
+    #ifdef DEBUG_MODE
     SerialMon.println(" fail");
+    #endif
     // watchdogEnable(); 
       while(true);
   }
+  #ifdef DEBUG_MODE
   SerialMon.println(" success");
+  #endif
 
   if (modem.isGprsConnected()) {
+    #ifdef DEBUG_MODE
     SerialMon.println("GPRS connected"); 
+    #endif
   }
   
   delay(5000);
@@ -497,19 +557,27 @@ ISR(WDT_vect)
 
 int sendData(char* postData, uint8_t age) {
   // watchdogEnable(); // In case connection to server fails
+  #ifdef DEBUG_MODE
   SerialMon.print(F("Performing HTTP POST request... "));
+  #endif
   //http.connectionKeepAlive();  // Currently, this is needed for HTTPS
   //int err = http.get(resource);
   int err = http.post(resource,contentType,postData);//even if they are char arrays
   if (err != 0) {
+    #ifdef DEBUG_MODE
     SerialMon.println(F("failed to connect"));
+    #endif
     while(true); // To be caught by WDT
   }
   // wdt_disable();
+  #ifdef DEBUG_MODE
   Serial.println("**** starting loop ****");
+  #endif
   int status = http.responseStatusCode();
+  #ifdef DEBUG_MODE
   SerialMon.print(F("Response status code: "));
   SerialMon.println(status);
+  #endif
   if ((status != 200) && (status != -3)) {
     return 0;
   }
@@ -519,12 +587,18 @@ int sendData(char* postData, uint8_t age) {
     markData(age, dataFile);
     digitalWrite(SD_CARD_LED,LOW);
     http.stop();
+    #ifdef DEBUG_MODE
     SerialMon.println(F("Server disconnected"));
+    #endif
     modem.gprsDisconnect();
+    #ifdef DEBUG_MODE
     SerialMon.println(F("GPRS disconnected"));
+    #endif
     while(1) {}
   }
+  #ifdef DEBUG_MODE
   SerialMon.println(F("Response Headers:"));
+  #endif
   while (http.headerAvailable()) {
     String headerName  = http.readHeaderName();
     String headerValue = http.readHeaderValue();
