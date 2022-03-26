@@ -31,7 +31,7 @@
 #define pinReset 4
 SoftwareSerial SerialAT(2, 3);  // RX, TX
 
-DS3231  rtc(SDA, SCL);
+DS3231  rtc;
 
 // LEDs
 const int SD_CARD_LED = 10;
@@ -79,8 +79,6 @@ unsigned statusBME;
 unsigned statusSHT;
 unsigned statusHTU;
 
-//data strings that will be written to the sdcard
-String timeStamp="";
 
 //for the soil moisture and temp sensor
 const int SMTmeasurements = 50;// multiple measurements to reduce noise error
@@ -273,7 +271,9 @@ void setup() {
   //Wire.begin();
   delay(100);
   // wdt_enable( WDT_PERIOD_8KCLK_gc);
-  rtc.begin();
+
+  // rtc.begin();
+
   // wdt_disable();
   delay(100);
   //Serial.println("after begin");
@@ -311,7 +311,7 @@ void setup() {
 }
 
 void loop() {
-    startTime = millis();
+  startTime = millis();
   
   SerialMon.println(millis());
   
@@ -339,7 +339,8 @@ void loop() {
  
   ///major loop here tor read all the other sensors that are in 3s
   // wdt_enable( WDT_PERIOD_8KCLK_gc);
-  timeStamp=(String(rtc.getDateStr())+"-"+String(rtc.getTimeStr()));
+  String timeStamp="";
+  timeStamp=(getDateNow(rtc)+"-"+getTimeNow(rtc));
   // wdt_disable();
   
   readData(doc);// first read from the main sensors
@@ -660,6 +661,31 @@ int markData(uint8_t age, String filename) {
     output_code = 4;
   }
   return output_code;
+}
+
+String getDateNow(DS3231 clock) {
+  // if it was 2095^, we'd need to plan for a century roll over.
+  bool century;
+  String out = String(clock.getDate(), DEC);
+  out += '.';
+  out += String(clock.getMonth(century), DEC);
+  out += '.';
+  out += String(clock.getYear(), DEC);
+  return out; // dd.mm.yyyy
+}
+
+
+//String getDateNow(DS3231 clock) {
+//  byte 
+//}
+
+String getTimeNow(DS3231 clock) {
+  bool h12; // 12-hour/~24-hour flag
+  bool PM; // PM/~AM flag
+  String out = String(clock.getHour(h12, PM), DEC) + ':';
+  out += String(clock.getMinute(), DEC) + ':';
+  out += String(clock.getSecond(), DEC);
+  return out; // HH:MM:SS
 }
 
 unsigned long timeLeft() {
