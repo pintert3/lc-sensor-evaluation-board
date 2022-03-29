@@ -1,5 +1,5 @@
 #include <Wire.h>
-#include <Adafruit_Sensor.h>
+// #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <SPI.h>
 #include "SD.h"
@@ -91,7 +91,7 @@ float SMTtemp=0.0;
 float SMTmois=0.0;
 
 
-// network  connection
+// // network  connection
 const char apn[]      = "internet";
 const char gprsUser[] = "";
 const char gprsPass[] = "";
@@ -100,14 +100,15 @@ int softrst=0;
 //communication variables
 // const char server[]   = "35.226.209.188";
 const char server[]   = "137.63.184.136";
-char resource[]="/api_v1/general/";//endpoint will be hard written here
-String contentType ="application/json";
+// char resource[]="/api_v1/general/";//endpoint will be hard written here
+// char contentType[] ="application/json";
 const int  port       = 8000;//port http
 
 TinyGsm        modem(SerialAT);
 
 TinyGsmClient client(modem);
 HttpClient          http(client, server, port);
+
 volatile int counter; //delay counter     
 volatile int countmax = 3; 
 
@@ -394,7 +395,7 @@ void loop() {
   #ifdef DEBUG_MODE
   SerialMon.println(millis());
   #endif
-  setupgsm();
+  // setupgsm();
   connectnet();
 
   // how to change OLD_DATA_AVAILABLE to true?
@@ -422,6 +423,7 @@ void loop() {
   #ifdef DEBUG_MODE
   SerialMon.println(F("GPRS disconnected"));
   #endif
+
   softrst++;
   if (softrst < 36){
   while (timeLeft() > 0);
@@ -450,6 +452,12 @@ void saveData(char Data[FILE_LINE_LENGTH+1] ,String filename){
 //gsm functions
 
 void setupgsm(){
+
+  //communication variables
+  // const char server[]   = "35.226.209.188";
+  const char server[]   = "137.63.184.136";
+  const int  port       = 8000;//port http
+
   pinMode(pinReset ,OUTPUT);//reset pin
   // Set console baud rate
   //SerialMon.begin(115200);
@@ -484,6 +492,7 @@ void setupgsm(){
 
 
  void connectnet(){
+  setupgsm();
   #ifdef DEBUG_MODE
   SerialMon.print("Waiting for network...");
   #endif
@@ -517,11 +526,11 @@ void setupgsm(){
   SerialMon.println(" success");
   #endif
 
+  #ifdef DEBUG_MODE
   if (modem.isGprsConnected()) {
-    #ifdef DEBUG_MODE
     SerialMon.println("GPRS connected"); 
-    #endif
   }
+  #endif
   
   delay(5000);
 }
@@ -556,6 +565,9 @@ ISR(WDT_vect)
 }*/
 
 int sendData(char* postData, uint8_t age) {
+  char resource[]="/api_v1/general/";//endpoint will be hard written here
+  char contentType[] ="application/json";
+
   // watchdogEnable(); // In case connection to server fails
   #ifdef DEBUG_MODE
   SerialMon.print(F("Performing HTTP POST request... "));
