@@ -484,8 +484,8 @@ void setupgsm(){
   #endif
   modem.restart();
    //modem.init();
-  String modemInfo = modem.getModemInfo();
   #ifdef DEBUG_MODE
+  String modemInfo = modem.getModemInfo();
   SerialMon.print("Modem Info: ");
   SerialMon.println(modemInfo);
   #endif
@@ -617,22 +617,22 @@ int sendData(char* postData, uint8_t age) {
     String headerValue = http.readHeaderValue();
     //SerialMon.println("    " + headerName + " : " + headerValue);
   }
-  int length = http.contentLength();
-  if (length >= 0) {
-    //SerialMon.print(F("Content length is: "));
-    //SerialMon.println(length);
-  }
-  if (http.isResponseChunked()) {
-    //SerialMon.println(F("The response is chunked"));
-  }
+  // int length = http.contentLength();
+  // if (length >= 0) {
+  //   //SerialMon.print(F("Content length is: "));
+  //   //SerialMon.println(length);
+  // }
+  // if (http.isResponseChunked()) {
+  //   //SerialMon.println(F("The response is chunked"));
+  // }
 
-  String body = http.responseBody();
-  //SerialMon.println(F("Response:"));
-  //SerialMon.println(body);
+  // String body = http.responseBody();
+  // //SerialMon.println(F("Response:"));
+  // //SerialMon.println(body);
 
-  //SerialMon.print(F("Body length is: "));
-  //SerialMon.println(body.length());
-  // wdt_disable();
+  // //SerialMon.print(F("Body length is: "));
+  // //SerialMon.println(body.length());
+  // // wdt_disable();
   
   markData(age, dataFile);
   return 1;
