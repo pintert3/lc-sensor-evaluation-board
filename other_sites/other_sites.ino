@@ -194,7 +194,7 @@ void readData(StaticJsonDocument<1024>& doc){
   delay(100);
   //check if sensor is connected if not it will cause the system to reset-- i don't know why yet
   // if the sensor is not connected, then its reading will be zero, that is under else block to be added.
-  data = doc.createNestedArray(String("sht"));
+  data = doc.createNestedArray("sht");
   if (statusSHT){
     data.add(sht31.readTemperature());
     delay(100);
@@ -205,7 +205,7 @@ void readData(StaticJsonDocument<1024>& doc){
     data.add("NULL");
   }
   
-  data = doc.createNestedArray(String("bme"));
+  data = doc.createNestedArray("bme");
   if (statusBME){
     data.add(bme.readTemperature());
     delay(100);
@@ -216,14 +216,15 @@ void readData(StaticJsonDocument<1024>& doc){
     data.add("NULL");
   }
 
-  data = doc.createNestedArray(String("htu"));
+  // data = doc.createNestedArray(String("htu"));
+  data = doc.createNestedArray("htu");
   htu.readHumidity(); // just to make it work
   data.add(htu.readTemperature());
   delay(100);
   data.add(htu.readHumidity());
   delay(100);
 
-  data = doc.createNestedArray(String("hdc"));
+  data = doc.createNestedArray("hdc");
   Tcselect(TCA_2);
   //We have to make sure they are connected otherwise since we have no status check for these yet.
   // Their ".begin()" doesn't return anything
@@ -235,7 +236,7 @@ void readData(StaticJsonDocument<1024>& doc){
   // wdt_disable();
 
   novaSoft.listen();
-  data = doc.createNestedArray(String("sds"));
+  data = doc.createNestedArray("sds");
   PmResult pm = sds.queryPm();
   if (pm.isOk()) {
     data.add(pm.pm25);
