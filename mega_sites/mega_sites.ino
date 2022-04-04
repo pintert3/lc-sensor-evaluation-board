@@ -36,7 +36,9 @@
 #define pinReset 6
 SoftwareSerial SerialAT(68, 69);  // RX, TX
 
-DS3231  rtc(SDA, SCL);
+DS3231  rtc;
+
+// DS3231  rtc(SDA, SCL);
 
 // LEDs
 const int SD_CARD_LED = 47;
@@ -280,7 +282,7 @@ void setup() {
   delay(100);
   wdt_enable( WDTO_8S);
 
-  rtc.begin();
+  // rtc.begin();
 
   wdt_disable();
   delay(100);
@@ -351,7 +353,7 @@ void loop() {
   ///major loop here tor read all the other sensors that are in 3s
   wdt_enable( WDTO_8S);
   String timeStamp="";
-  timeStamp=(String(rtc.getDateStr())+"-"+String(rtc.getTimeStr()));
+  timeStamp=(getDateNow(rtc)+"-"+getTimeNow(rtc));
   wdt_disable();
   
   readData(doc);// first read from the main sensors
@@ -728,6 +730,26 @@ int markData(uint8_t age, String filename) {
     output_code = 4;
   }
   return output_code;
+}
+
+String getDateNow(DS3231 clock) {
+  // if it was 2095^, we'd need to plan for a century roll over.
+  bool century;
+  String out = String(clock.getDate(), DEC);
+  out += '.';
+  out += String(clock.getMonth(century), DEC);
+  out += '.';
+  out += String(clock.getYear(), DEC);
+  return out; // dd.mm.yyyy
+}
+
+String getTimeNow(DS3231 clock) {
+  bool h12; // 12-hour/~24-hour flag
+  bool PM; // PM/~AM flag
+  String out = String(clock.getHour(h12, PM), DEC) + ':';
+  out += String(clock.getMinute(), DEC) + ':';
+  out += String(clock.getSecond(), DEC);
+  return out; // HH:MM:SS
 }
 
 unsigned long timeLeft() {
