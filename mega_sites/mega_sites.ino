@@ -33,13 +33,13 @@
 #define TINY_GSM_DEBUG SerialMon
 #define GSM_AUTOBAUD_MIN 9600
 #define GSM_AUTOBAUD_MAX 9600
-#define pinReset 4
-SoftwareSerial SerialAT(2, 3);  // RX, TX
+#define pinReset 6
+SoftwareSerial SerialAT(68, 69);  // RX, TX
 
-DS3231  rtc;
+DS3231  rtc(SDA, SCL);
 
 // LEDs
-const int SD_CARD_LED = 10;
+const int SD_CARD_LED = 47;
 const int SENSOR_LED = 9;
 
 // timing
@@ -55,7 +55,7 @@ const String dataFile = String("data.txt");
 //--- SD CARD VARIABLES
 
 // spi chip select pin
-const int CSpin = 8;
+const int CSpin = 53;
 
 // data age
 const uint8_t NEW_DATA = 1;
@@ -74,9 +74,8 @@ HDC1080 hdc1080;
 Adafruit_HTU21DF htu;
 
 //particulate matter objects
-SoftwareSerial novaSoft = SoftwareSerial(5,6);
-SdsDustSensor sds = SdsDustSensor(novaSoft); //passing Softwareserial& as parameter
-// SerialPM pmsa_array[2]={SerialPM(PMSA003, Serial1),SerialPM(PMSA003, Serial2)};// passing HardwareSerial& as parameter
+SoftwareSerial novaSoft = SoftwareSerial(10,11);
+SdsDustSensor sds = SdsDustSensor(novaSoft); //passing SoftwareSerial& as parameter
 
 //small sensor status established in setup function
 unsigned statusBME;
@@ -90,13 +89,13 @@ float SMTtemp=0.0;
 float SMTmois=0.0;
 
 
-// // network  connection
+// network  connection
 const char apn[]      = "internet";
 const char gprsUser[] = "";
 const char gprsPass[] = "";
 
 int softrst=0;
-//communication variables
+//communication variables // Slight modification here
 // const char server[]   = "35.226.209.188";
 const char server[]   = "137.63.184.136";
 // char resource[]="/api_v1/general/";//endpoint will be hard written here
@@ -110,9 +109,6 @@ HttpClient          http(client, server, port);
 
 volatile int counter; //delay counter     
 volatile int countmax = 3; 
-
-// ADAFruit sensor templates
-// TODO: Use templates to refactor adafruit sensor code
 
 // function to select channels
 void Tcselect(uint8_t bus){
@@ -185,7 +181,7 @@ int I2C_ClearBus() {
 
 void readData(StaticJsonDocument<1024>& doc){
   JsonArray data;
-  // wdt_enable( WDT_PERIOD_8KCLK_gc);
+  wdt_enable( WDTO_8S);
   // the channel corresponds to the i so we shall use the same variable
   Tcselect(TCA_1);
   delay(100);
@@ -229,7 +225,7 @@ void readData(StaticJsonDocument<1024>& doc){
   data.add(hdc1080.getHumidity());
   delay(100);
   // }
-  // wdt_disable();
+  wdt_disable();
 
   novaSoft.listen();
   data = doc.createNestedArray("sds");
@@ -250,7 +246,6 @@ void readData(StaticJsonDocument<1024>& doc){
 }
 
 void setup() {
-  rtcwdt();
   startTime = millis();
 
   //SD_CARD_LED
@@ -282,15 +277,16 @@ void setup() {
 
   delay(9000);
   //initialize all the sensors
-  // delay(100);
-  // wdt_enable( WDT_PERIOD_8KCLK_gc);
+  delay(100);
+  wdt_enable( WDTO_8S);
 
-  // rtc.begin();
+  rtc.begin();
 
-  // wdt_disable();
-  // delay(100);
+  wdt_disable();
+  delay(100);
   //Serial.println("after begin");
-  // wdt_enable( WDT_PERIOD_8KCLK_gc);
+  wdt_enable( WDTO_8S);
+
 
   //small sensors
   Tcselect(TCA_1);// select channel 
@@ -309,7 +305,7 @@ void setup() {
   hdc1080.begin();// doesn't return boolean so just intialize 
   delay(100);
 
-  // wdt_disable();
+  wdt_disable();
 
   //nova
   sds.begin(); // this line will begin soft-serial with given baud rate (9600 by default)
@@ -353,10 +349,10 @@ void loop() {
   SMTmois = SMTmois*50/3;
  
   ///major loop here tor read all the other sensors that are in 3s
-  // wdt_enable( WDT_PERIOD_8KCLK_gc);
+  wdt_enable( WDTO_8S);
   String timeStamp="";
-  timeStamp=(getDateNow(rtc)+"-"+getTimeNow(rtc));
-  // wdt_disable();
+  timeStamp=(String(rtc.getDateStr())+"-"+String(rtc.getTimeStr()));
+  wdt_disable();
   
   readData(doc);// first read from the main sensors
 
@@ -412,7 +408,7 @@ void loop() {
   if (softrst < 36){
   while (timeLeft() > 0);
   }else{
-    // watchdogEnable();
+    watchdogEnable();
     while(1);
     }
 }
@@ -484,7 +480,7 @@ void setupgsm(){
     #ifdef DEBUG_MODE
     SerialMon.println(" fail");
     #endif
-    // watchdogEnable(); 
+    watchdogEnable(); 
     while(true);  
   }
   #ifdef DEBUG_MODE
@@ -503,7 +499,7 @@ void setupgsm(){
     #ifdef DEBUG_MODE
     SerialMon.println(" fail");
     #endif
-    // watchdogEnable(); 
+    watchdogEnable(); 
       while(true);
   }
   #ifdef DEBUG_MODE
@@ -521,7 +517,8 @@ void setupgsm(){
 
 // --- PLEASE COMMENT THE CODE NEXT TIME!! --- //
 
-/*void watchdogEnable()
+// Restart mcu using watchdog timer
+void watchdogEnable()
 {
   countmax = (timeLeft()/8000)-3;
   counter=0;
@@ -546,13 +543,13 @@ ISR(WDT_vect)
     WDTCSR =  0b00001000 | 0b000000;    
     
   }
-}*/
+}
 
 int sendData(char* postData, uint8_t age) {
   char resource[]="/api_v1/general/";//endpoint will be hard written here
   char contentType[] ="application/json";
 
-  // watchdogEnable(); // In case connection to server fails
+  watchdogEnable(); // In case connection to server fails
   #ifdef DEBUG_MODE
   SerialMon.print(F("Performing HTTP POST request... "));
   #endif
@@ -565,7 +562,7 @@ int sendData(char* postData, uint8_t age) {
     #endif
     while(true); // To be caught by WDT
   }
-  // wdt_disable();
+  wdt_disable();
   #ifdef DEBUG_MODE
   Serial.println("**** starting loop ****");
   #endif
@@ -578,7 +575,7 @@ int sendData(char* postData, uint8_t age) {
     return 0;
   }
 
-  // watchdogEnable(); 
+  watchdogEnable(); 
   if (status == -3) {
     markData(age, dataFile);
     digitalWrite(SD_CARD_LED,LOW);
@@ -610,12 +607,12 @@ int sendData(char* postData, uint8_t age) {
   // }
 
   // String body = http.responseBody();
-  // //SerialMon.println(F("Response:"));
-  // //SerialMon.println(body);
+  //SerialMon.println(F("Response:"));
+  //SerialMon.println(body);
 
-  // //SerialMon.print(F("Body length is: "));
-  // //SerialMon.println(body.length());
-  // // wdt_disable();
+  //SerialMon.print(F("Body length is: "));
+  //SerialMon.println(body.length());
+  wdt_disable();
   
   markData(age, dataFile);
   return 1;
@@ -733,59 +730,10 @@ int markData(uint8_t age, String filename) {
   return output_code;
 }
 
-String getDateNow(DS3231 clock) {
-  // if it was 2095^, we'd need to plan for a century roll over.
-  bool century;
-  String out = String(clock.getDate(), DEC);
-  out += '.';
-  out += String(clock.getMonth(century), DEC);
-  out += '.';
-  out += String(clock.getYear(), DEC);
-  return out; // dd.mm.yyyy
-}
-
-String getTimeNow(DS3231 clock) {
-  bool h12; // 12-hour/~24-hour flag
-  bool PM; // PM/~AM flag
-  String out = String(clock.getHour(h12, PM), DEC) + ':';
-  out += String(clock.getMinute(), DEC) + ':';
-  out += String(clock.getSecond(), DEC);
-  return out; // HH:MM:SS
-}
-
 unsigned long timeLeft() {
   return (timeElapsed() < PERIOD) ? PERIOD - timeElapsed() : 0;
 }
 
 unsigned long timeElapsed() {
   return (millis() - startTime);
-}
-
-void configureCLKRTC() {
-  // configure CLK_RTC
-  RTC.CLKSEL |= RTC_CLKSEL0_bm; // INT32K OSCULP32K internal clock
-}
-
-void rtcwdt() {
-  configureCLKRTC();
-  while(RTC.STATUS & RTC_CTRLABUSY_bm); // wait for status to not be busy
-  // set RTC.CMP ==> 300 mins to 1001 0110 0000 0000
-  RTC.CMPL &= 0x00;
-  RTC.CMPH &= 0x96 ;
-
-  // Enable interrupts, RTC.INTCTRL
-  RTC.INTCTRL |= RTC_CMP_bm;
-
-  // Configure prescaler and enable bit
-  while(RTC.STATUS & RTC_CTRLABUSY_bm); // wait for CTRL status to not be busy
-  RTC.CTRLA |= (0x08<<3); // set 256 PRESCALER
-  RTC.CTRLA |= RTC_RTCEN_bm; // set RTC enable
-}
-
-ISR(RTC_CNT_vect) {
-  RTC.INTFLAGS |= RTC_CMP_bm;
-  
-  // start watchdog
-  RSTCTRL.RSTFR |= RSTCTRL_WDRF_bm ;
-  wdt_enable(WDT_PERIOD_8KCLK_gc);
 }
