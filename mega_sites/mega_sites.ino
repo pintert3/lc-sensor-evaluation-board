@@ -14,6 +14,13 @@
 #include <ArduinoJson.h>
 #include <ArduinoHttpClient.h>
 
+#ifdef MOBILE_SITE
+#include "TahmoGPS.h"
+
+// GPS variables
+TinyGPSPlus gps;
+#endif
+
 // DEBUG MODE if needed
 // #ifndef DEBUG_MODE
 // #define DEBUG_MODE
@@ -319,6 +326,10 @@ void setup() {
       //put an indicator led
     }
 
+  #ifdef MOBILE_SITE
+  GPSSerial.begin(9600);
+  #endif 
+
 }
 
 void loop() {
@@ -364,7 +375,14 @@ void loop() {
   JsonArray data = doc.createNestedArray("soil");
   data.add(SMTtemp);
   data.add(SMTmois);
+
   doc["timestamp"] = timeStamp;
+
+  #ifdef MOBILE_SITE
+  delay(500);
+  String gps_info = getGPSinfo(gps);
+  doc["gps_location"] = gps_info;
+  #endif
 
   serializeJson(doc, payload);
   
@@ -759,3 +777,4 @@ unsigned long timeLeft() {
 unsigned long timeElapsed() {
   return (millis() - startTime);
 }
+
