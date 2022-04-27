@@ -1,18 +1,34 @@
 #include <Wire.h>
-#include <Adafruit_Sensor.h>
+// #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <SPI.h>
 #include "SD.h"
 #include "Adafruit_SHT31.h"
 #include "Adafruit_HTU21DF.h"
 #include "SdsDustSensor.h"
-#include <PMserial.h>
+// #include <PMserial.h>
 #include "SoftwareSerial.h"
 #include <DS3231.h>
 #include "hdc.h"
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
 #include <ArduinoHttpClient.h>
+
+#ifdef MOBILE_SITE
+#include "TahmoGPS.h"
+
+// GPS variables
+TinyGPSPlus gps;
+#endif
+
+// DEBUG MODE if needed
+// #ifndef DEBUG_MODE
+// #define DEBUG_MODE
+// #endif
+
+//// TCA CHANNELS
+#define TCA_1 1
+#define TCA_2 4
 
 //////gsm
 #define TINY_GSM_MODEM_SIM800
@@ -27,11 +43,13 @@
 #define pinReset 6
 SoftwareSerial SerialAT(68, 69);  // RX, TX
 
-DS3231  rtc(SDA, SCL);
+DS3231  rtc;
 
-//sdcard
-const int CSpin = 53;
+// DS3231  rtc(SDA, SCL);
+
+// LEDs
 const int SD_CARD_LED = 47;
+const int SENSOR_LED = 9;
 
 // timing
 const unsigned long DATA_SEND_TIME = 120000;
@@ -43,32 +61,36 @@ volatile unsigned long startTime = 0;
 const unsigned int FILE_LINE_LENGTH = 520;
 const String dataFile = String("data.txt");
 
+//--- SD CARD VARIABLES
+
+// spi chip select pin
+const int CSpin = 53;
+
 // data age
 const uint8_t NEW_DATA = 1;
 const uint8_t OLD_DATA = 0;
 uint8_t OLD_DATA_AVAILABLE = 1;
 
+//----
+
 // File dataFile;
 // File logsfile;
 
 //tiny sensor objects
-Adafruit_BME280 bme[3];
-Adafruit_SHT31 sht31[3];
-HDC1080 hdc1080[3];
-Adafruit_HTU21DF htu[3];
+Adafruit_BME280 bme;
+Adafruit_SHT31 sht31;
+HDC1080 hdc1080;
+Adafruit_HTU21DF htu;
 
 //particulate matter objects
-SoftwareSerial soft[3]={SoftwareSerial(10,11),SoftwareSerial(12,13),SoftwareSerial(62,63)};
-SdsDustSensor sds[3]={SdsDustSensor(soft[0]),SdsDustSensor(soft[1]),SdsDustSensor(soft[2])}; //passing Softwareserial& as parameter
-SerialPM pmsa_array[2]={SerialPM(PMSA003, Serial1),SerialPM(PMSA003, Serial2)};// passing HardwareSerial& as parameter
+SoftwareSerial novaSoft = SoftwareSerial(10,11);
+SdsDustSensor sds = SdsDustSensor(novaSoft); //passing SoftwareSerial& as parameter
 
 //small sensor status established in setup function
-unsigned statusBME[3];
-unsigned statusSHT[3];
-unsigned statusHTU[3];
+unsigned statusBME;
+unsigned statusSHT;
+unsigned statusHTU;
 
-//data strings that will be written to the sdcard
-String timeStamp="";
 
 //for the soil moisture and temp sensor
 const int SMTmeasurements = 50;// multiple measurements to reduce noise error
@@ -82,17 +104,18 @@ const char gprsUser[] = "";
 const char gprsPass[] = "";
 
 int softrst=0;
-//communication variables
+//communication variables // Slight modification here
 // const char server[]   = "35.226.209.188";
-const char server[]   = "137.63.185.130";
-char resource[]="/api_v1/general/";//endpoint will be hard written here
-String contentType ="application/json";
+const char server[]   = "137.63.184.136";
+// char resource[]="/api_v1/general/";//endpoint will be hard written here
+// char contentType[] ="application/json";
 const int  port       = 8000;//port http
 
 TinyGsm        modem(SerialAT);
 
 TinyGsmClient client(modem);
 HttpClient          http(client, server, port);
+
 volatile int counter; //delay counter     
 volatile int countmax = 3; 
 
@@ -163,59 +186,59 @@ int I2C_ClearBus() {
   return 0; // all ok
 }
 
-////// Reading fucntion for the small sensors /////
-void readData(int i,StaticJsonDocument<1024>& doc){
+////// Reading function for the small sensors /////
+
+void readData(StaticJsonDocument<1024>& doc){
   JsonArray data;
   wdt_enable( WDTO_8S);
   // the channel corresponds to the i so we shall use the same variable
-  Tcselect(i+1);
+  Tcselect(TCA_1);
   delay(100);
   //check if sensor is connected if not it will cause the system to reset-- i don't know why yet
   // if the sensor is not connected, then its reading will be zero, that is under else block to be added.
-  data = doc.createNestedArray(String("sht_")+String(i+1));
-  if (statusSHT[i]){
-    data.add(sht31[i].readTemperature());
+  data = doc.createNestedArray("sht");
+  if (statusSHT){
+    data.add(sht31.readTemperature());
     delay(100);
-    data.add(sht31[i].readHumidity());
+    data.add(sht31.readHumidity());
     delay(100);
   } else {
     data.add("NULL");
     data.add("NULL");
   }
   
-  data = doc.createNestedArray(String("bme_")+String(i+1));
-  if (statusBME[i]){
-    data.add(bme[i].readTemperature());
+  data = doc.createNestedArray("bme");
+  if (statusBME){
+    data.add(bme.readTemperature());
     delay(100);
-    data.add(bme[i].readHumidity());
+    data.add(bme.readHumidity());
     delay(100);
   } else {
     data.add("NULL");
     data.add("NULL");
   }
 
-  data = doc.createNestedArray(String("htu_")+String(i+1));
-  htu[i].readHumidity(); // just to make it work
-  data.add(htu[i].readTemperature());
+  data = doc.createNestedArray("htu");
+  htu.readHumidity(); // just to make it work
+  data.add(htu.readTemperature());
   delay(100);
-  data.add(htu[i].readHumidity());
+  data.add(htu.readHumidity());
   delay(100);
 
-  // if (i<2){// we only have 2 of these
-  data = doc.createNestedArray(String("hdc_")+String(i+1));
-  Tcselect(i+4);
+  data = doc.createNestedArray("hdc");
+  Tcselect(TCA_2);
   //We have to make sure they are connected otherwise since we have no status check for these yet.
   // Their ".begin()" doesn't return anything
-  data.add(hdc1080[i].getTemperature());
+  data.add(hdc1080.getTemperature());
   delay(100);
-  data.add(hdc1080[i].getHumidity());
+  data.add(hdc1080.getHumidity());
   delay(100);
   // }
   wdt_disable();
 
-  soft[i].listen();
-  data = doc.createNestedArray(String("sds_")+String(i+1));
-  PmResult pm = sds[i].queryPm();
+  novaSoft.listen();
+  data = doc.createNestedArray("sds");
+  PmResult pm = sds.queryPm();
   if (pm.isOk()) {
     data.add(pm.pm25);
     data.add(pm.pm10);
@@ -225,34 +248,10 @@ void readData(int i,StaticJsonDocument<1024>& doc){
     data.add("NULL");
   }
   //sleep after reading an sds.
-   WorkingStateResult state = sds[i].sleep();
-  if (!state.isWorking()) {
-    //indicator led for sleeping
-  }
+   WorkingStateResult state = sds.sleep();
  
   delay(1000);
 
-  if (i < 2) {
-    data = doc.createNestedArray(String("pmsa_")+String(i+1));
-    pmsa_array[i].read();
-    delay(1000);
-    if (pmsa_array[i]) {
-      
-      
-      
-      data.add(pmsa_array[i].pm01);
-      data.add(pmsa_array[i].pm25);
-      data.add(pmsa_array[i].pm10);
-      
-    } else {
-      data.add("NULL");
-      data.add("NULL");
-      data.add("NULL");
-      //put here led indicator 
-      
-    }
-    pmsa_array[i].sleep();
-  }
 }
 
 void setup() {
@@ -260,85 +259,94 @@ void setup() {
 
   //SD_CARD_LED
   pinMode(SD_CARD_LED, OUTPUT);
+  #ifdef DEBUG_MODE
   SerialMon.begin(115200);
   SerialMon.println("========= RESET =========");
-   int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
-  if (rtn != 0) {
-    //Serial.println(F("I2C bus error. Could not clear"));
-    if (rtn == 1) {
-      //Serial.println(F("SCL clock line held low"));
-    } else if (rtn == 2) {
-      //Serial.println(F("SCL clock line held low by slave clock stretch"));
-    } else if (rtn == 3) {
-      //Serial.println(F("SDA data line held low"));
-    }
-  } else { // bus clear
-    // re-enable Wire
-    // now can start Wire Arduino master
+  #endif
+  int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
+  // SUBJECT TO CODE REFACTORING
+  // if (rtn != 0) {
+  //   //Serial.println(F("I2C bus error. Could not clear"));
+  //   if (rtn == 1) {
+  //     //Serial.println(F("SCL clock line held low"));
+  //   } else if (rtn == 2) {
+  //     //Serial.println(F("SCL clock line held low by slave clock stretch"));
+  //   } else if (rtn == 3) {
+  //     //Serial.println(F("SDA data line held low"));
+  //   }
+  // } else { // bus clear
+  //   // re-enable Wire
+  //   // now can start Wire Arduino master
+  //   Wire.begin();
+  // }
+
+  if (rtn == 0) {
     Wire.begin();
   }
+
   delay(9000);
- //initialize all the sensors
-  //Wire.begin();
+  //initialize all the sensors
   delay(100);
   wdt_enable( WDTO_8S);
-  rtc.begin();
+
+  // rtc.begin();
+
   wdt_disable();
   delay(100);
   //Serial.println("after begin");
   wdt_enable( WDTO_8S);
-  for(int i=0;i<3;i++){
-    //small sensors
-    Tcselect(i+1);// select channel 
-    delay(100);
-    statusHTU[i] = htu[i].begin();
-    delay(100);
-    statusSHT[i] = 1;
-    sht31[i].begin(); 
-    delay(100);
-    statusBME[i] =bme[i].begin(0x76); 
-    delay(100);
-    //Serial.println("before begin");
 
-    Tcselect(i+4);
-    delay(100);
-    hdc1080[i].begin();// doesn't return boolean so just intialize 
-    delay(100);
-  }
+
+  //small sensors
+  Tcselect(TCA_1);// select channel 
+  delay(100);
+  statusHTU = htu.begin();
+  delay(100);
+  statusSHT = 1;
+  sht31.begin(); 
+  delay(100);
+  statusBME = bme.begin(0x76); 
+  delay(100);
+  //Serial.println("before begin");
+
+  Tcselect(TCA_2);
+  delay(100);
+  hdc1080.begin();// doesn't return boolean so just intialize 
+  delay(100);
+
   wdt_disable();
-  for(int i=0;i<3;i++){
-    //big sensors
-    if (i < 2) {
-      pmsa_array[i].init();
-    }
-    sds[i].begin(); // this line will begin soft-serial with given baud rate (9600 by default)
-    sds[i].setQueryReportingMode(); // set reporting mode  
-    }
+
+  //nova
+  sds.begin(); // this line will begin soft-serial with given baud rate (9600 by default)
+  sds.setQueryReportingMode(); // set reporting mode  
+
     //sdcard
     pinMode(CSpin, OUTPUT);
     if (!SD.begin(CSpin)) {
       //put an indicator led
     }
 
+  #ifdef MOBILE_SITE
+  GPSSerial.begin(9600);
+  #endif 
+
 }
 
 void loop() {
-    startTime = millis();
+  startTime = millis();
   
+  #ifdef DEBUG_MODE
   SerialMon.println(millis());
+  #endif
   
   char payload[1024] = {0};
   StaticJsonDocument<1024> doc;
-//overrite the last strings 
+  //overrite the last strings 
   // wake up the big sensors
-  for(int i=0;i<3;i++){
-    soft[i].listen();
-    sds[i].wakeup();
-    delay(800);
-    if (i<2) {
-      pmsa_array[i].wake();
-    }
-  }
+  novaSoft.listen();
+  sds.wakeup();
+  delay(800);
+
   //Serial.println("waking up");
   delay(40000);
 
@@ -355,17 +363,26 @@ void loop() {
  
   ///major loop here tor read all the other sensors that are in 3s
   wdt_enable( WDTO_8S);
-  timeStamp=(String(rtc.getDateStr())+"-"+String(rtc.getTimeStr()));
+  String timeStamp="";
+  timeStamp=(getDateNow(rtc)+"-"+getTimeNow(rtc));
   wdt_disable();
   
-  for(int i=0;i<3;i++){
-    readData(i,doc);// first read from the small sensors
-  }
+  readData(doc);// first read from the main sensors
+
+  #ifdef DEBUG_MODE
   SerialMon.println(millis());
+  #endif
   JsonArray data = doc.createNestedArray("soil");
   data.add(SMTtemp);
   data.add(SMTmois);
+
   doc["timestamp"] = timeStamp;
+
+  #ifdef MOBILE_SITE
+  delay(500);
+  String gps_info = getGPSinfo(gps);
+  doc["gps_location"] = gps_info;
+  #endif
 
   serializeJson(doc, payload);
   
@@ -375,8 +392,10 @@ void loop() {
   formatData(dataToSave);
   digitalWrite(SD_CARD_LED,HIGH);
   saveData(dataToSave, dataFile);
+  #ifdef DEBUG_MODE
   SerialMon.println(millis());
-  setupgsm();
+  #endif
+  // setupgsm();
   connectnet();
 
   // how to change OLD_DATA_AVAILABLE to true?
@@ -386,10 +405,10 @@ void loop() {
         memset(payload, 0, 1024);
         if (readOldData(payload, dataFile)) {
           sendData(payload, OLD_DATA);
-        } else {
+        } /*else {
           // in case there's no data or an error in reading, 
           // do nothing.
-        }
+        }*/
         // timeLeft = PERIOD - (millis() - startTime);
       }
     }
@@ -397,9 +416,14 @@ void loop() {
 
   digitalWrite(SD_CARD_LED,LOW);
   http.stop();
+  #ifdef DEBUG_MODE
   SerialMon.println(F("Server disconnected"));
+  #endif
   modem.gprsDisconnect();
+  #ifdef DEBUG_MODE
   SerialMon.println(F("GPRS disconnected"));
+  #endif
+
   softrst++;
   if (softrst < 36){
   while (timeLeft() > 0);
@@ -428,6 +452,12 @@ void saveData(char Data[FILE_LINE_LENGTH+1] ,String filename){
 //gsm functions
 
 void setupgsm(){
+
+  //communication variables
+  // const char server[]   = "35.226.209.188";
+  const char server[]   = "137.63.184.136";
+  const int  port       = 8000;//port http
+
   pinMode(pinReset ,OUTPUT);//reset pin
   // Set console baud rate
   //SerialMon.begin(115200);
@@ -439,49 +469,73 @@ void setupgsm(){
   digitalWrite(pinReset, HIGH);
   delay(3000);
 
+  #ifdef DEBUG_MODE
   SerialMon.println("Wait...");
+  #endif
   //modem.setBaud(9600);
   TinyGsmAutoBaud(SerialAT, GSM_AUTOBAUD_MIN, GSM_AUTOBAUD_MAX);
   // SerialAT.begin(9600);
   delay(6000);
   // Restart takes quite some time
   // To skip it, call init() instead of restart()
+  #ifdef DEBUG_MODE
   SerialMon.println("Initializing modem...");
+  #endif
   modem.restart();
    //modem.init();
+  #ifdef DEBUG_MODE
   String modemInfo = modem.getModemInfo();
   SerialMon.print("Modem Info: ");
   SerialMon.println(modemInfo);
+  #endif
 }
 
 
  void connectnet(){
+  setupgsm();
+  #ifdef DEBUG_MODE
   SerialMon.print("Waiting for network...");
+  #endif
   if (!modem.waitForNetwork()) {
+    #ifdef DEBUG_MODE
     SerialMon.println(" fail");
+    #endif
     watchdogEnable(); 
     while(true);  
   }
+  #ifdef DEBUG_MODE
   SerialMon.println(" success");
+  #endif
   if (modem.isNetworkConnected()) { 
+    #ifdef DEBUG_MODE
     SerialMon.println("Network connected");
+    #endif
   }
-    SerialMon.print(F("Connecting to "));
+  #ifdef DEBUG_MODE
+  SerialMon.print(F("Connecting to "));
   SerialMon.print(apn);
+  #endif
   if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
+    #ifdef DEBUG_MODE
     SerialMon.println(" fail");
+    #endif
     watchdogEnable(); 
       while(true);
   }
+  #ifdef DEBUG_MODE
   SerialMon.println(" success");
+  #endif
 
+  #ifdef DEBUG_MODE
   if (modem.isGprsConnected()) {
     SerialMon.println("GPRS connected"); 
   }
+  #endif
   
   delay(5000);
 }
 
+// --- PLEASE COMMENT THE CODE NEXT TIME!! --- //
 
 // Restart mcu using watchdog timer
 void watchdogEnable()
@@ -512,20 +566,31 @@ ISR(WDT_vect)
 }
 
 int sendData(char* postData, uint8_t age) {
+  char resource[]="/api_v1/general/";//endpoint will be hard written here
+  char contentType[] ="application/json";
+
   watchdogEnable(); // In case connection to server fails
+  #ifdef DEBUG_MODE
   SerialMon.print(F("Performing HTTP POST request... "));
+  #endif
   //http.connectionKeepAlive();  // Currently, this is needed for HTTPS
   //int err = http.get(resource);
   int err = http.post(resource,contentType,postData);//even if they are char arrays
   if (err != 0) {
+    #ifdef DEBUG_MODE
     SerialMon.println(F("failed to connect"));
+    #endif
     while(true); // To be caught by WDT
   }
   wdt_disable();
+  #ifdef DEBUG_MODE
   Serial.println("**** starting loop ****");
+  #endif
   int status = http.responseStatusCode();
+  #ifdef DEBUG_MODE
   SerialMon.print(F("Response status code: "));
   SerialMon.println(status);
+  #endif
   if ((status != 200) && (status != -3)) {
     return 0;
   }
@@ -535,27 +600,33 @@ int sendData(char* postData, uint8_t age) {
     markData(age, dataFile);
     digitalWrite(SD_CARD_LED,LOW);
     http.stop();
+    #ifdef DEBUG_MODE
     SerialMon.println(F("Server disconnected"));
+    #endif
     modem.gprsDisconnect();
+    #ifdef DEBUG_MODE
     SerialMon.println(F("GPRS disconnected"));
+    #endif
     while(1) {}
   }
+  #ifdef DEBUG_MODE
   SerialMon.println(F("Response Headers:"));
+  #endif
   while (http.headerAvailable()) {
     String headerName  = http.readHeaderName();
     String headerValue = http.readHeaderValue();
     //SerialMon.println("    " + headerName + " : " + headerValue);
   }
-  int length = http.contentLength();
-  if (length >= 0) {
-    //SerialMon.print(F("Content length is: "));
-    //SerialMon.println(length);
-  }
-  if (http.isResponseChunked()) {
-    //SerialMon.println(F("The response is chunked"));
-  }
+  // int length = http.contentLength();
+  // if (length >= 0) {
+  //   //SerialMon.print(F("Content length is: "));
+  //   //SerialMon.println(length);
+  // }
+  // if (http.isResponseChunked()) {
+  //   //SerialMon.println(F("The response is chunked"));
+  // }
 
-  String body = http.responseBody();
+  // String body = http.responseBody();
   //SerialMon.println(F("Response:"));
   //SerialMon.println(body);
 
@@ -679,6 +750,26 @@ int markData(uint8_t age, String filename) {
   return output_code;
 }
 
+String getDateNow(DS3231 clock) {
+  // if it was 2095^, we'd need to plan for a century roll over.
+  bool century;
+  String out = String(clock.getDate(), DEC);
+  out += '.';
+  out += String(clock.getMonth(century), DEC);
+  out += '.';
+  out += String(clock.getYear(), DEC);
+  return out; // dd.mm.yyyy
+}
+
+String getTimeNow(DS3231 clock) {
+  bool h12; // 12-hour/~24-hour flag
+  bool PM; // PM/~AM flag
+  String out = String(clock.getHour(h12, PM), DEC) + ':';
+  out += String(clock.getMinute(), DEC) + ':';
+  out += String(clock.getSecond(), DEC);
+  return out; // HH:MM:SS
+}
+
 unsigned long timeLeft() {
   return (timeElapsed() < PERIOD) ? PERIOD - timeElapsed() : 0;
 }
@@ -686,3 +777,4 @@ unsigned long timeLeft() {
 unsigned long timeElapsed() {
   return (millis() - startTime);
 }
+
